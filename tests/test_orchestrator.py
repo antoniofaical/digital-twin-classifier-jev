@@ -72,7 +72,13 @@ def test_crawl_mode_never_requires_key_or_calls_classifier(
 
     orchestrator.main(["--mode", "crawl", "-vv"])
 
-    assert calls["scraper"]["max_pages"] == 0
+    assert calls["scraper"]["max_pages"] == orchestrator.DEFAULT_MAX_PAGES
+    assert calls["scraper"]["max_requests"] == orchestrator.DEFAULT_MAX_REQUESTS
+    assert calls["scraper"]["max_queue_size"] == orchestrator.DEFAULT_MAX_QUEUE_SIZE
+    assert (
+        calls["scraper"]["max_crawl_seconds"] == orchestrator.DEFAULT_MAX_CRAWL_SECONDS
+    )
+    assert calls["scraper"]["max_sitemaps"] == orchestrator.DEFAULT_MAX_SITEMAPS
     assert calls["scraper"]["verbose"] == 2
     output = capsys.readouterr().out
     assert "no Jev or DeepL API calls will be made" in output
@@ -117,6 +123,37 @@ def test_progress_auto_disables_for_non_tty_and_explicit_flag() -> None:
     )
     assert not orchestrator.terminal_progress_enabled(disabled=True, stream=TTYBuffer())
     assert orchestrator.parse_args(["--mode", "crawl", "--no-progress"]).no_progress
+
+
+def test_crawl_limits_have_safe_defaults_and_can_be_disabled() -> None:
+    defaults = orchestrator.parse_args(["--mode", "crawl"])
+    assert defaults.max_pages_per_site == orchestrator.DEFAULT_MAX_PAGES
+    assert defaults.max_requests_per_site == orchestrator.DEFAULT_MAX_REQUESTS
+    assert defaults.max_queue_size == orchestrator.DEFAULT_MAX_QUEUE_SIZE
+    assert defaults.max_crawl_seconds == orchestrator.DEFAULT_MAX_CRAWL_SECONDS
+    assert defaults.max_sitemaps_per_site == orchestrator.DEFAULT_MAX_SITEMAPS
+
+    disabled = orchestrator.parse_args(
+        [
+            "--mode",
+            "crawl",
+            "--max-pages-per-site",
+            "0",
+            "--max-requests-per-site",
+            "0",
+            "--max-queue-size",
+            "0",
+            "--max-crawl-seconds",
+            "0",
+            "--max-sitemaps-per-site",
+            "0",
+        ]
+    )
+    assert disabled.max_pages_per_site == 0
+    assert disabled.max_requests_per_site == 0
+    assert disabled.max_queue_size == 0
+    assert disabled.max_crawl_seconds == 0
+    assert disabled.max_sitemaps_per_site == 0
 
 
 def test_run_site_jobs_tracks_concurrent_success_failure_and_reuse() -> None:
@@ -375,6 +412,81 @@ def test_crawl_freshness_uses_only_explicit_state(tmp_path) -> None:
         now=now,
     )
     assert not is_recent
+
+
+def test_naturally_completed_legacy_unlimited_crawl_remains_reusable(tmp_path) -> None:
+    site = {"name": "site1", "url": "https://example.com/"}
+    site_dir = tmp_path / "evidence" / "site1"
+    _write_evidence(site_dir)
+    legacy_config = {
+        **orchestrator.SCRAPER_CONFIG,
+        "max_pages": 0,
+        "verbose": 0,
+    }
+    orchestrator.write_crawl_state(
+        site=site,
+        site_dir=site_dir,
+        scraper_config=legacy_config,
+    )
+    state_file = site_dir / orchestrator.CRAWL_STATE_FILENAME
+    state = json.loads(state_file.read_text())
+    state["crawl_signature"] = {
+        key: value
+        for key, value in state["crawl_signature"].items()
+        if key
+        in {
+            "root_url",
+            "include_subdomains",
+            "include_query_urls",
+            "respect_robots",
+            "max_pages",
+        }
+    }
+    state_file.write_text(json.dumps(state) + "\n", encoding="utf-8")
+    current_config = {
+        **orchestrator.SCRAPER_CONFIG,
+        "max_pages": orchestrator.DEFAULT_MAX_PAGES,
+        "verbose": 0,
+    }
+
+    is_recent, _ = orchestrator.recent_crawl(
+        site=site,
+        site_dir=site_dir,
+        scraper_config=current_config,
+        max_age_hours=24,
+    )
+
+    assert is_recent
+
+
+def test_crawl_state_preserves_limit_audit_data(tmp_path) -> None:
+    site = {"name": "site1", "url": "https://example.com/"}
+    site_dir = tmp_path / "evidence" / "site1"
+    _write_evidence(site_dir)
+    manifest_file = site_dir / "manifest.json"
+    manifest = json.loads(manifest_file.read_text())
+    manifest.update(
+        {
+            "crawl_limited": True,
+            "crawl_limit_reasons": ["request_limit"],
+        }
+    )
+    manifest_file.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+    config = {
+        **orchestrator.SCRAPER_CONFIG,
+        "max_pages": orchestrator.DEFAULT_MAX_PAGES,
+        "verbose": 0,
+    }
+
+    orchestrator.write_crawl_state(
+        site=site,
+        site_dir=site_dir,
+        scraper_config=config,
+    )
+
+    state = json.loads((site_dir / orchestrator.CRAWL_STATE_FILENAME).read_text())
+    assert state["crawl_limited"]
+    assert state["crawl_limit_reasons"] == ["request_limit"]
 
 
 def test_classify_uses_safe_directory_for_display_name(tmp_path, monkeypatch) -> None:

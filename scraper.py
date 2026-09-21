@@ -3,16 +3,26 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import io
 import json
 import re
+import time
 import unicodedata
 import xml.etree.ElementTree as ET
-from collections import deque
+from collections import Counter, deque
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import parse_qsl, urldefrag, urlencode, urljoin, urlparse, urlunparse
+from urllib.parse import (
+    parse_qsl,
+    unquote,
+    urldefrag,
+    urlencode,
+    urljoin,
+    urlparse,
+    urlunparse,
+)
 from urllib.robotparser import RobotFileParser
 
 import requests
@@ -27,6 +37,14 @@ except ImportError:
 
 
 USER_AGENT = "DigitalTwinClassifier/1.0"
+DEFAULT_MAX_PAGES = 400
+DEFAULT_MAX_REQUESTS = 500
+DEFAULT_MAX_QUEUE_SIZE = 2_000
+DEFAULT_MAX_CRAWL_SECONDS = 900.0
+DEFAULT_MAX_SITEMAPS = 50
+MAX_URL_LENGTH = 2_048
+MAX_PATH_SEGMENTS = 30
+REPEATED_PATH_SEQUENCE_LIMIT = 3
 SKIPPED_EXTENSIONS = {
     ".7z",
     ".avi",
@@ -56,6 +74,12 @@ SKIPPED_EXTENSIONS = {
     ".zip",
 }
 TRACKING_KEYS = {"fbclid", "gclid", "mc_cid", "mc_eid"}
+PAGE_FILE_EXTENSIONS = {".asp", ".aspx", ".htm", ".html", ".jsp", ".php"}
+DOCUMENT_FILE_EXTENSIONS = {".csv", ".json", ".md", ".pdf", ".txt", ".xml"}
+SCHEMELESS_HOST_RE = re.compile(
+    r"^(?P<host>(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,62})\.)+"
+    r"[A-Za-z]{2,63}(?::\d+)?)(?P<suffix>(?:[/?#].*)?)$"
+)
 
 
 def evidence_directory_name(site_name: str) -> str:
@@ -83,6 +107,11 @@ def canonicalize(url: str, *, keep_query: bool) -> str:
         ]
         query = urlencode(sorted(pairs))
     path = re.sub(r"/{2,}", "/", parsed.path or "/")
+    path = re.sub(
+        r"%[0-9a-fA-F]{2}",
+        lambda match: match.group(0).upper(),
+        path,
+    )
     return urlunparse(
         (parsed.scheme.lower(), parsed.netloc.lower(), path, "", query, "")
     )
@@ -96,6 +125,47 @@ def in_scope(url: str, root_url: str, include_subdomains: bool) -> bool:
     candidate = host(url)
     root = host(root_url)
     return candidate == root or (include_subdomains and candidate.endswith("." + root))
+
+
+def resolve_discovered_url(base_url: str, reference: str) -> str:
+    """Resolve links while treating a bare hostname as an absolute URL."""
+    value = reference.strip()
+    match = SCHEMELESS_HOST_RE.match(value)
+    if match:
+        candidate_path = "/" + match.group("host").split(":", 1)[0]
+        if Path(candidate_path).suffix.lower() not in (
+            SKIPPED_EXTENSIONS | PAGE_FILE_EXTENSIONS | DOCUMENT_FILE_EXTENSIONS
+        ):
+            value = "//" + value
+    return urljoin(base_url, value)
+
+
+def unsafe_url_reason(url: str) -> str | None:
+    """Identify URL shapes that are characteristic of crawler traps."""
+    if len(url) > MAX_URL_LENGTH:
+        return "url_too_long"
+    segments = [
+        unquote(segment).casefold()
+        for segment in urlparse(url).path.split("/")
+        if segment
+    ]
+    if len(segments) > MAX_PATH_SEGMENTS:
+        return "path_too_deep"
+    for block_size in range(
+        1, min(4, len(segments) // REPEATED_PATH_SEQUENCE_LIMIT) + 1
+    ):
+        repeated_size = block_size * REPEATED_PATH_SEQUENCE_LIMIT
+        for start in range(len(segments) - repeated_size + 1):
+            block = segments[start : start + block_size]
+            if all(
+                segments[
+                    start + repeat * block_size : start + (repeat + 1) * block_size
+                ]
+                == block
+                for repeat in range(1, REPEATED_PATH_SEQUENCE_LIMIT)
+            ):
+                return "repeated_path_sequence"
+    return None
 
 
 def sitemap_locations(content: bytes, url: str) -> tuple[str, list[str]]:
@@ -116,8 +186,14 @@ def sitemap_locations(content: bytes, url: str) -> tuple[str, list[str]]:
 
 def html_text_and_links(url: str, html: str) -> tuple[str, set[str]]:
     soup = BeautifulSoup(html, "html.parser")
-    links = {urljoin(url, tag["href"]) for tag in soup.find_all("a", href=True)}
-    links.update(urljoin(url, tag["src"]) for tag in soup.find_all("iframe", src=True))
+    links = {
+        resolve_discovered_url(url, str(tag["href"]))
+        for tag in soup.find_all("a", href=True)
+    }
+    links.update(
+        resolve_discovered_url(url, str(tag["src"]))
+        for tag in soup.find_all("iframe", src=True)
+    )
 
     title = soup.title.get_text(" ", strip=True) if soup.title else ""
     descriptions = [
@@ -170,7 +246,11 @@ def scrape_site(
     site_name: str,
     root_url: str,
     evidence_root: Path,
-    max_pages: int = 0,
+    max_pages: int = DEFAULT_MAX_PAGES,
+    max_requests: int = DEFAULT_MAX_REQUESTS,
+    max_queue_size: int = DEFAULT_MAX_QUEUE_SIZE,
+    max_crawl_seconds: float = DEFAULT_MAX_CRAWL_SECONDS,
+    max_sitemaps: int = DEFAULT_MAX_SITEMAPS,
     include_subdomains: bool = False,
     include_query_urls: bool = False,
     respect_robots: bool = True,
@@ -179,6 +259,17 @@ def scrape_site(
     log_callback: Callable[[str], None] | None = None,
 ) -> Path:
     """Crawl one site and create evidence/<site_name>/evidence.jsonl."""
+    limits = {
+        "max_pages": max_pages,
+        "max_requests": max_requests,
+        "max_queue_size": max_queue_size,
+        "max_crawl_seconds": max_crawl_seconds,
+        "max_sitemaps": max_sitemaps,
+    }
+    if any(value < 0 for value in limits.values()):
+        raise ValueError("crawl limits must be zero or positive")
+
+    started_at = time.monotonic()
     root_url = root_url if re.match(r"^https?://", root_url) else "https://" + root_url
     root_url = canonicalize(root_url, keep_query=include_query_urls)
     site_dir = evidence_root / evidence_directory_name(site_name)
@@ -198,6 +289,8 @@ def scrape_site(
     robots_url = urljoin(root_url, "/robots.txt")
     robots.set_url(robots_url)
     errors: list[dict[str, str]] = []
+    limit_reasons: set[str] = set()
+    skipped_by_reason: Counter[str] = Counter()
     sitemap_seeds = {
         urljoin(root_url, "/sitemap.xml"),
         urljoin(root_url, "/sitemap_index.xml"),
@@ -226,6 +319,15 @@ def scrape_site(
     queued: set[str] = set()
     visited: set[str] = set()
     sitemap_seen: set[str] = set()
+    content_hashes: dict[str, str] = {}
+
+    def time_limit_reached() -> bool:
+        if not max_crawl_seconds:
+            return False
+        if time.monotonic() - started_at < max_crawl_seconds:
+            return False
+        limit_reasons.add("time_limit")
+        return True
 
     def enqueue(url: str) -> None:
         value = canonicalize(url, keep_query=include_query_urls)
@@ -233,9 +335,20 @@ def scrape_site(
             return
         if Path(urlparse(value).path.lower()).suffix in SKIPPED_EXTENSIONS:
             return
-        if value not in queued and value not in visited:
-            queued.add(value)
-            queue.append(value)
+        unsafe_reason = unsafe_url_reason(value)
+        if unsafe_reason:
+            skipped_by_reason[unsafe_reason] += 1
+            log(2, f"trap SKIP {value}; reason={unsafe_reason}")
+            return
+        if value in queued or value in visited:
+            return
+        if max_queue_size and len(queue) >= max_queue_size:
+            limit_reasons.add("queue_limit")
+            skipped_by_reason["queue_limit"] += 1
+            log(2, f"queue SKIP {value}; limit={max_queue_size}")
+            return
+        queued.add(value)
+        queue.append(value)
 
     def read_sitemap(url: str) -> None:
         value = canonicalize(url, keep_query=True)
@@ -244,6 +357,13 @@ def scrape_site(
             or value in sitemap_seen
             or not in_scope(value, root_url, include_subdomains)
         ):
+            return
+        if time_limit_reached():
+            return
+        if max_sitemaps and len(sitemap_seen) >= max_sitemaps:
+            limit_reasons.add("sitemap_limit")
+            skipped_by_reason["sitemap_limit"] += 1
+            log(2, f"sitemap SKIP {value}; limit={max_sitemaps}")
             return
         sitemap_seen.add(value)
         try:
@@ -271,7 +391,16 @@ def scrape_site(
     enqueue(root_url)
 
     pages: list[dict[str, object]] = []
-    while queue and (max_pages == 0 or len(pages) < max_pages):
+    page_requests = 0
+    while queue:
+        if max_pages and len(pages) >= max_pages:
+            limit_reasons.add("page_limit")
+            break
+        if max_requests and page_requests >= max_requests:
+            limit_reasons.add("request_limit")
+            break
+        if time_limit_reached():
+            break
         url = queue.popleft()
         queued.discard(url)
         if url in visited:
@@ -281,19 +410,39 @@ def scrape_site(
             log(2, f"robots SKIP {url}")
             continue
         try:
-            log(1, f"page {len(visited)} GET {url}")
+            page_requests += 1
+            log(1, f"page {page_requests} GET {url}")
             response = session.get(url, timeout=request_timeout)
             response.raise_for_status()
             text, links = extract_response(response)
+            final_url = canonicalize(
+                response.url,
+                keep_query=include_query_urls,
+            )
+            if final_url and in_scope(final_url, root_url, include_subdomains):
+                visited.add(final_url)
             log(
                 2,
                 f"page HTTP {response.status_code} {response.url}; "
                 f"type={response.headers.get('content-type', '')!r}, "
                 f"characters={len(text)}, links={len(links)}",
             )
+            content_hash = (
+                hashlib.sha256(text.encode("utf-8")).hexdigest() if text else ""
+            )
+            if content_hash and content_hash in content_hashes:
+                skipped_by_reason["duplicate_content"] += 1
+                log(
+                    2,
+                    f"content SKIP {response.url}; duplicate of "
+                    f"{content_hashes[content_hash]}",
+                )
+                continue
+            if content_hash:
+                content_hashes[content_hash] = final_url or response.url
             pages.append(
                 {
-                    "url": response.url,
+                    "url": final_url or response.url,
                     "content_type": response.headers.get("content-type", ""),
                     "language_hint": response_language_hint(response),
                     "text": text,
@@ -321,9 +470,18 @@ def scrape_site(
         "created_at": datetime.now(timezone.utc).isoformat(),
         "pages_saved": len(pages),
         "urls_visited": len(visited),
+        "page_requests_attempted": page_requests,
         "sitemaps_checked": len(sitemap_seen),
         "remaining_queue": len(queue),
-        "stopped_by_page_limit": bool(queue and max_pages and len(pages) >= max_pages),
+        "crawl_complete": not limit_reasons,
+        "crawl_limited": bool(limit_reasons),
+        "crawl_limit_reasons": sorted(limit_reasons),
+        "stopped_by_page_limit": "page_limit" in limit_reasons,
+        "stopped_by_request_limit": "request_limit" in limit_reasons,
+        "stopped_by_time_limit": "time_limit" in limit_reasons,
+        "limits": limits,
+        "urls_skipped_by_reason": dict(sorted(skipped_by_reason.items())),
+        "duration_seconds": round(time.monotonic() - started_at, 3),
         "errors": errors,
     }
     (site_dir / "manifest.json").write_text(
@@ -333,6 +491,7 @@ def scrape_site(
     log(
         1,
         f"saved {len(pages)} page(s); visited={len(visited)}, "
-        f"errors={len(errors)}, remaining={len(queue)}",
+        f"requests={page_requests}, errors={len(errors)}, remaining={len(queue)}, "
+        f"limited={','.join(sorted(limit_reasons)) or 'no'}",
     )
     return site_dir

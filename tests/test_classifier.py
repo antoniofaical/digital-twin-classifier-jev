@@ -114,6 +114,42 @@ def test_classify_site_uses_passed_key_and_never_calls_live_api(
     assert "test-secret" not in (site_dir / "classification.json").read_text()
 
 
+def test_crawl_budget_limit_forces_partial_classification(
+    tmp_path, monkeypatch
+) -> None:
+    probabilities = {name: 0.95 for name in classifier.QUESTIONS}
+    calls: list[dict[str, Any]] = []
+    _mock_jev(monkeypatch, probabilities, calls)
+    site_dir = tmp_path / "evidence" / "site1"
+    site_dir.mkdir(parents=True)
+    (site_dir / "evidence.jsonl").write_text(
+        json.dumps({"url": "https://example.com/", "text": "evidence"}) + "\n",
+        encoding="utf-8",
+    )
+    (site_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "crawl_limited": True,
+                "crawl_limit_reasons": ["request_limit"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = classifier.classify_site(
+        site_name="site1",
+        evidence_dir=site_dir,
+        api_key="test-secret",
+    )
+
+    assert result["classification"] == "partial_evidence_classification"
+    assert result["provisional_classification"] == "verified_digital_twin"
+    assert result["crawl_was_limited"]
+    assert result["crawl_limit_reasons"] == ["request_limit"]
+    assert result["requires_human_review"]
+
+
 def test_classify_site_balances_single_request_across_saved_pages(
     tmp_path, monkeypatch
 ) -> None:
