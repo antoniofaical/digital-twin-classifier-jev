@@ -8,7 +8,6 @@ from pathlib import Path
 from classifier import classify_site
 from scraper import scrape_site
 
-
 # Add or remove sites here. Each name becomes a dedicated evidence/<name>/ folder.
 SITES = [
     {"name": "netabolics", "url": "https://netabolics.ai/"},
