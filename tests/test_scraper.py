@@ -56,9 +56,7 @@ def test_sitemap_index_and_urlset_are_parsed() -> None:
         b"<sitemapindex><sitemap><loc>https://example.com/pages.xml</loc>"
         b"</sitemap></sitemapindex>"
     )
-    urlset = (
-        b"<urlset><url><loc>https://example.com/about</loc></url></urlset>"
-    )
+    urlset = b"<urlset><url><loc>https://example.com/about</loc></url></urlset>"
     assert scraper.sitemap_locations(index, "https://example.com/sitemap.xml") == (
         "sitemapindex",
         ["https://example.com/pages.xml"],
