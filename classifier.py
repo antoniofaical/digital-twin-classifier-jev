@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from math import ceil
 from pathlib import Path
 from typing import Any
 
@@ -127,6 +128,18 @@ def representative_evidence_chunk(
     }
 
 
+def evenly_spaced_indices(total: int, selected: int) -> list[int]:
+    """Choose chunk indices spanning the start, middle, and end of the corpus."""
+    if selected <= 0 or selected > total:
+        raise ValueError("selected must be between one and total")
+    if selected == 1:
+        return [total // 2]
+    return [
+        round(position * (total - 1) / (selected - 1))
+        for position in range(selected)
+    ]
+
+
 def decide(
     probabilities: dict[str, float],
     coherent_core_evidence: bool,
@@ -157,6 +170,7 @@ def classify_site(
     model: str = "jev-latest",
     chunk_chars: int = 20_000,
     max_chunks: int = 0,
+    evidence_percentage: float | None = None,
     positive_threshold: float = 0.70,
     negative_threshold: float = 0.30,
     request_timeout: int = 60,
@@ -168,6 +182,10 @@ def classify_site(
         raise ValueError("chunk_chars must be a positive integer")
     if max_chunks < 0:
         raise ValueError("max_chunks must be zero or a positive integer")
+    if evidence_percentage is not None and not 0 < evidence_percentage <= 100:
+        raise ValueError("evidence_percentage must be greater than zero and at most 100")
+    if evidence_percentage is not None and max_chunks:
+        raise ValueError("Use evidence_percentage or max_chunks, not both")
 
     evidence_file = evidence_dir / "evidence.jsonl"
     if not evidence_file.exists():
@@ -177,17 +195,32 @@ def classify_site(
     if not all_chunks:
         raise ValueError(f"No textual evidence found in {evidence_file}")
 
-    sampling_strategy = "all_chunks"
-    if max_chunks == 1 and len(all_chunks) > 1:
-        chunks = [representative_evidence_chunk(evidence_file, chunk_chars)]
-        sampling_strategy = "balanced_across_pages"
+    total_chunks = len(all_chunks)
+    if evidence_percentage is not None:
+        selected_count = min(
+            total_chunks,
+            ceil(total_chunks * evidence_percentage / 100),
+        )
     elif max_chunks:
-        chunks = all_chunks[:max_chunks]
-        sampling_strategy = "first_chunks"
+        selected_count = min(total_chunks, max_chunks)
     else:
-        chunks = all_chunks
+        selected_count = total_chunks
 
-    chunks_were_limited = len(chunks) < len(all_chunks)
+    if selected_count == total_chunks:
+        chunks = all_chunks
+        source_chunk_numbers = list(range(1, total_chunks + 1))
+        sampling_strategy = "all_chunks"
+    elif selected_count == 1:
+        chunks = [representative_evidence_chunk(evidence_file, chunk_chars)]
+        source_chunk_numbers = list(range(1, total_chunks + 1))
+        sampling_strategy = "balanced_across_pages"
+    else:
+        selected_indices = evenly_spaced_indices(total_chunks, selected_count)
+        chunks = [all_chunks[index] for index in selected_indices]
+        source_chunk_numbers = [index + 1 for index in selected_indices]
+        sampling_strategy = "evenly_spaced_chunks"
+
+    chunks_were_limited = len(chunks) < total_chunks
 
     crawl_was_limited = False
     manifest_file = evidence_dir / "manifest.json"
@@ -233,7 +266,10 @@ def classify_site(
             log.write(
                 json.dumps(
                     {
-                        "chunk": number,
+                        "request": number,
+                        "source_chunk": source_chunk_numbers[number - 1]
+                        if sampling_strategy == "evenly_spaced_chunks"
+                        else None,
                         "sampling_strategy": sampling_strategy,
                         "urls": list(
                             dict.fromkeys(page["url"] for page in chunk["pages"])
@@ -253,7 +289,7 @@ def classify_site(
     )
     provisional_classification = classification if evidence_is_partial else None
     if evidence_is_partial:
-        classification = "partial_evidence_smoke_test"
+        classification = "partial_evidence_classification"
         is_digital_twin = None
         requires_review = True
 
@@ -266,10 +302,12 @@ def classify_site(
         "evidence_is_partial": evidence_is_partial,
         "crawl_was_limited": crawl_was_limited,
         "chunks_were_limited": chunks_were_limited,
+        "evidence_percentage_requested": evidence_percentage,
         "sampling_strategy": sampling_strategy,
+        "source_chunk_numbers": source_chunk_numbers,
         "criterion_probabilities": aggregate,
         "chunks_supporting_all_core_criteria": coherent_chunks,
-        "evidence_chunks_available": len(all_chunks),
+        "evidence_chunks_available": total_chunks,
         "evidence_chunks_sent": len(chunks),
         "model": model,
     }
