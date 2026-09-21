@@ -39,6 +39,11 @@ def test_evidence_chunks_preserve_all_text(tmp_path) -> None:
     assert recovered == "A" * 12 + "B" * 8
 
 
+def test_evenly_spaced_indices_span_the_corpus() -> None:
+    assert classifier.evenly_spaced_indices(4, 2) == [0, 3]
+    assert classifier.evenly_spaced_indices(5, 3) == [0, 2, 4]
+
+
 def test_decide_requires_coherent_evidence_for_verified_label() -> None:
     probabilities = {name: 0.95 for name in classifier.QUESTIONS}
     assert classifier.decide(probabilities, True, 0.70, 0.30) == (
@@ -109,7 +114,7 @@ def test_classify_site_uses_passed_key_and_never_calls_live_api(
     assert "test-secret" not in (site_dir / "classification.json").read_text()
 
 
-def test_classify_site_balances_smoke_test_across_saved_pages(
+def test_classify_site_balances_single_request_across_saved_pages(
     tmp_path, monkeypatch
 ) -> None:
     probabilities = {name: 0.95 for name in classifier.QUESTIONS}
@@ -142,7 +147,7 @@ def test_classify_site_balances_smoke_test_across_saved_pages(
         "https://example.com/product",
     }
     assert sum(len(page["text"]) for page in submitted_pages) == 10
-    assert result["classification"] == "partial_evidence_smoke_test"
+    assert result["classification"] == "partial_evidence_classification"
     assert result["provisional_classification"] == "verified_digital_twin"
     assert result["is_digital_twin"] is None
     assert result["requires_human_review"]
@@ -150,3 +155,33 @@ def test_classify_site_balances_smoke_test_across_saved_pages(
     assert result["sampling_strategy"] == "balanced_across_pages"
     assert result["evidence_chunks_available"] == 2
     assert result["evidence_chunks_sent"] == 1
+
+
+def test_percentage_selection_is_evenly_spaced(tmp_path, monkeypatch) -> None:
+    probabilities = {name: 0.95 for name in classifier.QUESTIONS}
+    calls: list[dict[str, Any]] = []
+    _mock_jev(monkeypatch, probabilities, calls)
+
+    site_dir = tmp_path / "evidence" / "site1"
+    site_dir.mkdir(parents=True)
+    text = "A" * 10 + "B" * 10 + "C" * 10 + "D" * 10
+    (site_dir / "evidence.jsonl").write_text(
+        json.dumps({"url": "https://example.com/", "text": text}) + "\n",
+        encoding="utf-8",
+    )
+
+    result = classifier.classify_site(
+        site_name="site1",
+        evidence_dir=site_dir,
+        api_key="test-secret",
+        chunk_chars=10,
+        evidence_percentage=50,
+    )
+
+    submitted_text = [call["json"]["state"]["pages"][0]["text"] for call in calls]
+    assert submitted_text == ["A" * 10, "D" * 10]
+    assert result["evidence_percentage_requested"] == 50
+    assert result["sampling_strategy"] == "evenly_spaced_chunks"
+    assert result["source_chunk_numbers"] == [1, 4]
+    assert result["evidence_chunks_available"] == 4
+    assert result["evidence_chunks_sent"] == 2
