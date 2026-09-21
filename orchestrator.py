@@ -100,9 +100,7 @@ def count_chunks(evidence_file: Path, chunk_chars: int) -> int:
     return sum(1 for _ in evidence_chunks(evidence_file, chunk_chars))
 
 
-def translation_workload(
-    chunks: list[dict[str, Any]], mode: str
-) -> tuple[int, int]:
+def translation_workload(chunks: list[dict[str, Any]], mode: str) -> tuple[int, int]:
     request_count = 0
     character_count = 0
     for chunk in chunks:
