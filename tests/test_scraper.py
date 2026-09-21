@@ -115,3 +115,11 @@ def test_scrape_site_creates_isolated_evidence_folder(tmp_path, monkeypatch) -> 
     manifest = json.loads((site_dir / "manifest.json").read_text())
     assert manifest["pages_saved"] == 2
     assert not manifest["stopped_by_page_limit"]
+
+
+def test_language_hint_reads_html_lang_attribute() -> None:
+    response = FakeResponse(
+        "https://example.com/",
+        text='<html lang="es"><body>Hola</body></html>',
+    )
+    assert scraper.response_language_hint(response) == "es"
