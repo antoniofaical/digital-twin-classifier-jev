@@ -8,6 +8,7 @@ import os
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -29,6 +30,18 @@ DEEPL_API_KEY_ENV = "DEEPL_API_KEY"
 
 SMOKE_MAX_PAGES = 5
 SMOKE_MAX_CHUNKS = 1
+DEFAULT_CRAWL_MAX_AGE_HOURS = 24.0
+CRAWL_STATE_VERSION = 1
+CRAWL_STATE_FILENAME = "crawl_state.json"
+GENERATED_ARTIFACT_FILENAMES = (
+    "classification.json",
+    CRAWL_STATE_FILENAME,
+    ".crawl_state.json.tmp",
+    "evidence.jsonl",
+    "jev_chunks.jsonl",
+    "manifest.json",
+    "translations.jsonl",
+)
 
 SCRAPER_CONFIG = {
     "include_subdomains": False,
@@ -82,6 +95,20 @@ def percentage_value(value: str) -> float:
     if not 0 <= percentage <= 100:
         raise argparse.ArgumentTypeError("percentage must be from 0 to 100")
     return percentage
+
+
+def non_negative_number(value: str) -> float:
+    try:
+        number = float(value.replace(",", "."))
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "crawl max age must be zero or a positive number"
+        ) from exc
+    if number < 0:
+        raise argparse.ArgumentTypeError(
+            "crawl max age must be zero or a positive number"
+        )
+    return number
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -140,6 +167,27 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="maximum number of sites processed concurrently, default: 1",
     )
     parser.add_argument(
+        "--crawl-max-age-hours",
+        type=non_negative_number,
+        default=DEFAULT_CRAWL_MAX_AGE_HOURS,
+        help=(
+            "reuse a completed full crawl for this many hours, default: 24; "
+            "only applies to crawl mode"
+        ),
+    )
+    parser.add_argument(
+        "--force-crawl",
+        action="store_true",
+        help="ignore a recent crawl and fetch every selected site again",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="show page progress; use -vv for HTTP, sitemap, robots, and error details",
+    )
+    parser.add_argument(
         "--percentage",
         type=percentage_value,
         help="evidence percentage for classify mode; otherwise prompt once for the bulk",
@@ -153,6 +201,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.percentage is not None and args.mode != "classify":
         parser.error("--percentage can only be used with --mode classify")
+    if args.force_crawl and args.mode != "crawl":
+        parser.error("--force-crawl can only be used with --mode crawl")
     return args
 
 
@@ -228,6 +278,101 @@ def evidence_directories(
         owners[normalized] = site["name"]
         directories[site["name"]] = evidence_root / directory_name
     return directories
+
+
+def crawl_signature(
+    site: dict[str, str], scraper_config: dict[str, Any]
+) -> dict[str, Any]:
+    return {
+        "root_url": site["url"],
+        "include_subdomains": bool(scraper_config["include_subdomains"]),
+        "include_query_urls": bool(scraper_config["include_query_urls"]),
+        "respect_robots": bool(scraper_config["respect_robots"]),
+        "max_pages": int(scraper_config["max_pages"]),
+    }
+
+
+def recent_crawl(
+    *,
+    site: dict[str, str],
+    site_dir: Path,
+    scraper_config: dict[str, Any],
+    max_age_hours: float,
+    now: datetime | None = None,
+) -> tuple[bool, float | None]:
+    """Trust only the explicit state written by this cache implementation."""
+    state_file = site_dir / CRAWL_STATE_FILENAME
+    if not state_file.exists():
+        return False, None
+    if (
+        not (site_dir / "evidence.jsonl").exists()
+        or not (site_dir / "manifest.json").exists()
+    ):
+        return False, None
+    try:
+        state = json.loads(state_file.read_text(encoding="utf-8"))
+        completed_at = datetime.fromisoformat(str(state["completed_at"]))
+    except (OSError, ValueError, TypeError, KeyError):
+        return False, None
+    if completed_at.tzinfo is None:
+        return False, None
+    if state.get("schema_version") != CRAWL_STATE_VERSION:
+        return False, None
+    if state.get("status") != "completed":
+        return False, None
+    if state.get("site_name") != site["name"]:
+        return False, None
+    if state.get("crawl_signature") != crawl_signature(site, scraper_config):
+        return False, None
+
+    current_time = now or datetime.now(timezone.utc)
+    age = current_time - completed_at.astimezone(timezone.utc)
+    if age < timedelta(0):
+        return False, None
+    age_hours = age.total_seconds() / 3600
+    return age_hours <= max_age_hours, age_hours
+
+
+def clean_generated_artifacts(site_dir: Path) -> list[str]:
+    """Delete only files generated by this pipeline, never arbitrary user files."""
+    if site_dir.is_symlink():
+        raise ValueError(f"Refusing to clean symlinked evidence directory: {site_dir}")
+    removed: list[str] = []
+    for filename in GENERATED_ARTIFACT_FILENAMES:
+        artifact = site_dir / filename
+        if artifact.exists() or artifact.is_symlink():
+            artifact.unlink()
+            removed.append(filename)
+    return removed
+
+
+def write_crawl_state(
+    *,
+    site: dict[str, str],
+    site_dir: Path,
+    scraper_config: dict[str, Any],
+    completed_at: datetime | None = None,
+) -> None:
+    if (
+        not (site_dir / "evidence.jsonl").exists()
+        or not (site_dir / "manifest.json").exists()
+    ):
+        raise FileNotFoundError(
+            f"Cannot mark crawl complete without evidence and manifest in {site_dir}"
+        )
+    state = {
+        "schema_version": CRAWL_STATE_VERSION,
+        "status": "completed",
+        "site_name": site["name"],
+        "completed_at": (completed_at or datetime.now(timezone.utc)).isoformat(),
+        "crawl_signature": crawl_signature(site, scraper_config),
+    }
+    temporary = site_dir / ".crawl_state.json.tmp"
+    temporary.write_text(
+        json.dumps(state, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(site_dir / CRAWL_STATE_FILENAME)
 
 
 def prompt_evidence_percentage(chunk_count: int, site_count: int = 1) -> float:
@@ -347,12 +492,17 @@ def print_bulk_plan(plans: list[ClassificationPlan], translation_mode: str) -> N
 
 
 def print_bulk_summary(
-    *, selected: int, completed: int, errors: dict[str, str], cancelled: int = 0
+    *,
+    selected: int,
+    completed: int,
+    errors: dict[str, str],
+    cancelled: int = 0,
+    reused: int = 0,
 ) -> None:
     print(
         "BULK SUMMARY: "
         f"selected={selected}, completed={completed}, "
-        f"failed={len(errors)}, cancelled={cancelled}"
+        f"failed={len(errors)}, cancelled={cancelled}, reused={reused}"
     )
     for name, error in errors.items():
         print(f"[{name}] failed: {error}")
@@ -375,6 +525,7 @@ def main(argv: list[str] | None = None) -> None:
     scraper_config = {
         **SCRAPER_CONFIG,
         "max_pages": SMOKE_MAX_PAGES if smoke_test else 0,
+        "verbose": args.verbose,
     }
     base_classifier_config = {
         **CLASSIFIER_CONFIG,
@@ -401,15 +552,49 @@ def main(argv: list[str] | None = None) -> None:
         )
     elif mode == "crawl":
         print("FULL CRAWL: no Jev or DeepL API calls will be made.")
+        if args.force_crawl:
+            print("CRAWL CACHE: bypassed by --force-crawl.")
+        else:
+            print(
+                "CRAWL CACHE: completed crawls up to "
+                f"{args.crawl_max_age_hours:g} hours old will be reused."
+            )
     else:
         print("CLASSIFICATION: no API calls occur before bulk approval.")
     print(f"Selected {len(sites)} site(s); using up to {args.workers} worker(s).")
 
     errors: dict[str, str] = {}
+    reused_names: set[str] = set()
+    sites_to_scrape = list(sites)
+
+    if mode == "crawl" and not args.force_crawl:
+        sites_to_scrape = []
+        for site in sites:
+            is_recent, age_hours = recent_crawl(
+                site=site,
+                site_dir=site_dirs[site["name"]],
+                scraper_config=scraper_config,
+                max_age_hours=args.crawl_max_age_hours,
+            )
+            if is_recent:
+                reused_names.add(site["name"])
+                print(
+                    f"[{site['name']}] reusing crawl completed "
+                    f"{age_hours:.1f} hour(s) ago"
+                )
+            else:
+                sites_to_scrape.append(site)
 
     if run_scraper:
 
         def scrape(site: dict[str, str]) -> Path:
+            removed = clean_generated_artifacts(site_dirs[site["name"]])
+            if removed:
+                reason = "stale" if mode == "crawl" else "previous"
+                print(
+                    f"[{site['name']}] removed {reason} generated artifacts: "
+                    f"{', '.join(removed)}"
+                )
             print(f"[{site['name']}] scraping {site['url']}")
             return scrape_site(
                 site_name=site["name"],
@@ -418,7 +603,11 @@ def main(argv: list[str] | None = None) -> None:
                 **scraper_config,
             )
 
-        scraped, scrape_errors = run_site_jobs(sites, args.workers, scrape)
+        scraped, scrape_errors = run_site_jobs(
+            sites_to_scrape,
+            args.workers,
+            scrape,
+        )
         site_dirs.update(scraped)
         errors.update(scrape_errors)
 
@@ -426,10 +615,22 @@ def main(argv: list[str] | None = None) -> None:
     if mode == "crawl":
 
         def crawl_result(site: dict[str, str]) -> int:
-            return count_chunks(
+            chunks = count_chunks(
                 site_dirs[site["name"]] / "evidence.jsonl",
                 base_classifier_config["chunk_chars"],
             )
+            if chunks == 0:
+                raise ValueError(
+                    f"No textual evidence found in "
+                    f"{site_dirs[site['name']] / 'evidence.jsonl'}"
+                )
+            if site["name"] not in reused_names:
+                write_crawl_state(
+                    site=site,
+                    site_dir=site_dirs[site["name"]],
+                    scraper_config=scraper_config,
+                )
+            return chunks
 
         chunk_counts, count_errors = run_site_jobs(
             ready_sites,
@@ -448,6 +649,7 @@ def main(argv: list[str] | None = None) -> None:
             selected=len(sites),
             completed=len(chunk_counts),
             errors=errors,
+            reused=len(reused_names),
         )
         if errors:
             raise BulkExecutionError(f"{len(errors)} site(s) failed during bulk crawl")
