@@ -66,6 +66,15 @@ def test_decide_distinguishes_biosimulation() -> None:
     )
 
 
+def _mock_jev(monkeypatch, probabilities, calls) -> None:
+    def fake_post(*args: object, **kwargs: Any) -> FakeJevResponse:
+        del args
+        calls.append(kwargs)
+        return FakeJevResponse(probabilities)
+
+    monkeypatch.setattr(classifier.requests, "post", fake_post)
+
+
 def test_classify_site_uses_passed_key_and_never_calls_live_api(
     tmp_path, monkeypatch
 ) -> None:
@@ -78,13 +87,8 @@ def test_classify_site_uses_passed_key_and_never_calls_live_api(
         "enabling_technology": 0.99,
     }
     calls: list[dict[str, Any]] = []
+    _mock_jev(monkeypatch, probabilities, calls)
 
-    def fake_post(*args: object, **kwargs: Any) -> FakeJevResponse:
-        del args
-        calls.append(kwargs)
-        return FakeJevResponse(probabilities)
-
-    monkeypatch.setattr(classifier.requests, "post", fake_post)
     site_dir = tmp_path / "evidence" / "site1"
     site_dir.mkdir(parents=True)
     (site_dir / "evidence.jsonl").write_text(
@@ -99,6 +103,39 @@ def test_classify_site_uses_passed_key_and_never_calls_live_api(
     )
 
     assert result["classification"] == "verified_digital_twin"
+    assert not result["evidence_is_partial"]
     assert len(calls) == 1
     assert calls[0]["headers"]["Authorization"] == "Bearer test-secret"
     assert "test-secret" not in (site_dir / "classification.json").read_text()
+
+
+def test_classify_site_limits_smoke_test_and_marks_result_partial(
+    tmp_path, monkeypatch
+) -> None:
+    probabilities = {name: 0.95 for name in classifier.QUESTIONS}
+    calls: list[dict[str, Any]] = []
+    _mock_jev(monkeypatch, probabilities, calls)
+
+    site_dir = tmp_path / "evidence" / "site1"
+    site_dir.mkdir(parents=True)
+    (site_dir / "evidence.jsonl").write_text(
+        json.dumps({"url": "https://example.com/", "text": "A" * 12}) + "\n",
+        encoding="utf-8",
+    )
+
+    result = classifier.classify_site(
+        site_name="site1",
+        evidence_dir=site_dir,
+        api_key="test-secret",
+        chunk_chars=10,
+        max_chunks=1,
+    )
+
+    assert len(calls) == 1
+    assert result["classification"] == "partial_evidence_smoke_test"
+    assert result["provisional_classification"] == "verified_digital_twin"
+    assert result["is_digital_twin"] is None
+    assert result["requires_human_review"]
+    assert result["evidence_is_partial"]
+    assert result["evidence_chunks_available"] == 2
+    assert result["evidence_chunks_sent"] == 1
