@@ -135,8 +135,7 @@ def evenly_spaced_indices(total: int, selected: int) -> list[int]:
     if selected == 1:
         return [total // 2]
     return [
-        round(position * (total - 1) / (selected - 1))
-        for position in range(selected)
+        round(position * (total - 1) / (selected - 1)) for position in range(selected)
     ]
 
 
