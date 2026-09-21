@@ -1,28 +1,45 @@
 {
   "site_name": "novasign",
   "root_url": "https://novasign.at/",
-  "created_at": "2026-09-21T16:28:51.671261+00:00",
-  "pages_saved": 131,
-  "urls_visited": 157,
+  "created_at": "2026-09-21T17:50:46.019722+00:00",
+  "pages_saved": 100,
+  "urls_visited": 159,
+  "page_requests_attempted": 157,
   "sitemaps_checked": 7,
   "remaining_queue": 0,
+  "crawl_complete": true,
+  "crawl_limited": false,
+  "crawl_limit_reasons": [],
   "stopped_by_page_limit": false,
+  "stopped_by_request_limit": false,
+  "stopped_by_time_limit": false,
+  "limits": {
+    "max_pages": 400,
+    "max_requests": 500,
+    "max_queue_size": 2000,
+    "max_crawl_seconds": 900.0,
+    "max_sitemaps": 50
+  },
+  "urls_skipped_by_reason": {
+    "duplicate_content": 31
+  },
+  "duration_seconds": 288.344,
   "errors": [
-    {
-      "url": "https://www.novasign.at/technology-hybrid-modeling",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/technology-hybrid-modeling"
-    },
-    {
-      "url": "https://www.novasign.at/products-services-toolbox",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/products-services-toolbox"
-    },
     {
       "url": "https://www.novasign.at/teaser",
       "error": "404 Client Error: Not Found for url: https://novasign.at/teaser"
     },
     {
+      "url": "https://www.novasign.at/technology-hybrid-modeling",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/technology-hybrid-modeling"
+    },
+    {
       "url": "https://www.novasign.at/technology-use-cases",
       "error": "404 Client Error: Not Found for url: https://novasign.at/technology-use-cases"
+    },
+    {
+      "url": "https://www.novasign.at/products-services-toolbox",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/products-services-toolbox"
     },
     {
       "url": "https://www.novasign.at/technology-intensified-doe",
@@ -45,10 +62,6 @@
       "error": "404 Client Error: Not Found for url: https://novasign.at/workshop"
     },
     {
-      "url": "https://novasign.at/post/2019/09/13/",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2019/09/13/"
-    },
-    {
       "url": "https://novasign.at/post/2020/05/01/",
       "error": "404 Client Error: Not Found for url: https://novasign.at/post/2020/05/01/"
     },
@@ -57,40 +70,48 @@
       "error": "404 Client Error: Not Found for url: https://novasign.at/post/2022/11/04/"
     },
     {
-      "url": "https://novasign.at/post/2023/04/01/",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2023/04/01/"
+      "url": "https://novasign.at/post/2019/11/11/",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2019/11/11/"
     },
     {
       "url": "https://novasign.at/post/2021/06/02/",
       "error": "404 Client Error: Not Found for url: https://novasign.at/post/2021/06/02/"
     },
     {
-      "url": "https://novasign.at/post/2022/04/06/",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2022/04/06/"
-    },
-    {
-      "url": "https://novasign.at/post/2020/06/05/",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2020/06/05/"
-    },
-    {
-      "url": "https://novasign.at/post/2024/03/09/",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2024/03/09/"
-    },
-    {
-      "url": "https://novasign.at/post/2022/11/15/",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2022/11/15/"
-    },
-    {
-      "url": "https://novasign.at/post/2021/11/12/",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2021/11/12/"
+      "url": "https://novasign.at/post/2019/09/20/",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2019/09/20/"
     },
     {
       "url": "https://novasign.at/post/2019/06/03/",
       "error": "404 Client Error: Not Found for url: https://novasign.at/post/2019/06/03/"
     },
     {
+      "url": "https://novasign.at/post/2023/04/01/",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2023/04/01/"
+    },
+    {
+      "url": "https://novasign.at/post/2024/03/09/",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2024/03/09/"
+    },
+    {
+      "url": "https://novasign.at/post/2019/09/13/",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2019/09/13/"
+    },
+    {
+      "url": "https://novasign.at/post/2022/11/15/",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2022/11/15/"
+    },
+    {
       "url": "https://novasign.at/post/2020/12/04/",
       "error": "404 Client Error: Not Found for url: https://novasign.at/post/2020/12/04/"
+    },
+    {
+      "url": "https://novasign.at/post/2021/11/12/",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2021/11/12/"
+    },
+    {
+      "url": "https://novasign.at/post/2022/04/06/",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2022/04/06/"
     },
     {
       "url": "https://novasign.at/post/2020/02/05/",
@@ -101,12 +122,8 @@
       "error": "404 Client Error: Not Found for url: https://novasign.at/post/2021/12/01/"
     },
     {
-      "url": "https://novasign.at/post/2019/11/11/",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2019/11/11/"
-    },
-    {
-      "url": "https://novasign.at/post/2019/09/20/",
-      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2019/09/20/"
+      "url": "https://novasign.at/post/2020/06/05/",
+      "error": "404 Client Error: Not Found for url: https://novasign.at/post/2020/06/05/"
     },
     {
       "url": "https://novasign.at/bioprocess-modeling-consulting/",

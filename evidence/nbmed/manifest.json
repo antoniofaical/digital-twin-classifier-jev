@@ -1,12 +1,29 @@
 {
   "site_name": "nbmed",
   "root_url": "https://nbmed-inc.com/",
-  "created_at": "2026-09-21T16:27:34.941719+00:00",
-  "pages_saved": 21,
-  "urls_visited": 22,
+  "created_at": "2026-09-21T17:46:50.898041+00:00",
+  "pages_saved": 14,
+  "urls_visited": 17,
+  "page_requests_attempted": 17,
   "sitemaps_checked": 7,
   "remaining_queue": 0,
+  "crawl_complete": true,
+  "crawl_limited": false,
+  "crawl_limit_reasons": [],
   "stopped_by_page_limit": false,
+  "stopped_by_request_limit": false,
+  "stopped_by_time_limit": false,
+  "limits": {
+    "max_pages": 400,
+    "max_requests": 500,
+    "max_queue_size": 2000,
+    "max_crawl_seconds": 900.0,
+    "max_sitemaps": 50
+  },
+  "urls_skipped_by_reason": {
+    "duplicate_content": 2
+  },
+  "duration_seconds": 17.031,
   "errors": [
     {
       "url": "https://nbmed-inc.com/sitemap_index.xml",

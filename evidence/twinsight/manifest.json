@@ -1,11 +1,28 @@
 {
   "site_name": "twinsight",
   "root_url": "https://twinsight-medical.com/services-en/",
-  "created_at": "2026-09-21T16:30:02.868411+00:00",
-  "pages_saved": 16,
+  "created_at": "2026-09-21T17:51:04.903827+00:00",
+  "pages_saved": 13,
   "urls_visited": 16,
+  "page_requests_attempted": 16,
   "sitemaps_checked": 6,
   "remaining_queue": 0,
+  "crawl_complete": true,
+  "crawl_limited": false,
+  "crawl_limit_reasons": [],
   "stopped_by_page_limit": false,
+  "stopped_by_request_limit": false,
+  "stopped_by_time_limit": false,
+  "limits": {
+    "max_pages": 400,
+    "max_requests": 500,
+    "max_queue_size": 2000,
+    "max_crawl_seconds": 900.0,
+    "max_sitemaps": 50
+  },
+  "urls_skipped_by_reason": {
+    "duplicate_content": 3
+  },
+  "duration_seconds": 16.828,
   "errors": []
 }

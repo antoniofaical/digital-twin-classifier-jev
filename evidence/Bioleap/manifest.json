@@ -1,12 +1,27 @@
 {
   "site_name": "Bioleap",
   "root_url": "https://www.bioleap.ai/",
-  "created_at": "2026-09-21T16:22:23.839219+00:00",
+  "created_at": "2026-09-21T17:43:57.485883+00:00",
   "pages_saved": 1,
   "urls_visited": 1,
+  "page_requests_attempted": 1,
   "sitemaps_checked": 3,
   "remaining_queue": 0,
+  "crawl_complete": true,
+  "crawl_limited": false,
+  "crawl_limit_reasons": [],
   "stopped_by_page_limit": false,
+  "stopped_by_request_limit": false,
+  "stopped_by_time_limit": false,
+  "limits": {
+    "max_pages": 400,
+    "max_requests": 500,
+    "max_queue_size": 2000,
+    "max_crawl_seconds": 900.0,
+    "max_sitemaps": 50
+  },
+  "urls_skipped_by_reason": {},
+  "duration_seconds": 0.766,
   "errors": [
     {
       "url": "https://www.bioleap.ai/wp-sitemap.xml",

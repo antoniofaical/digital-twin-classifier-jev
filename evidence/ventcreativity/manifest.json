@@ -1,12 +1,27 @@
 {
   "site_name": "ventcreativity",
   "root_url": "https://www.ventcreativity.com/",
-  "created_at": "2026-09-21T16:27:44.334029+00:00",
+  "created_at": "2026-09-21T17:46:54.290301+00:00",
   "pages_saved": 8,
   "urls_visited": 8,
+  "page_requests_attempted": 8,
   "sitemaps_checked": 3,
   "remaining_queue": 0,
+  "crawl_complete": true,
+  "crawl_limited": false,
+  "crawl_limit_reasons": [],
   "stopped_by_page_limit": false,
+  "stopped_by_request_limit": false,
+  "stopped_by_time_limit": false,
+  "limits": {
+    "max_pages": 400,
+    "max_requests": 500,
+    "max_queue_size": 2000,
+    "max_crawl_seconds": 900.0,
+    "max_sitemaps": 50
+  },
+  "urls_skipped_by_reason": {},
+  "duration_seconds": 1.515,
   "errors": [
     {
       "url": "https://www.ventcreativity.com/wp-sitemap.xml",

@@ -1,40 +1,75 @@
 {
   "site_name": "corcillum",
   "root_url": "https://www.corcillum.com.au/",
-  "created_at": "2026-09-21T16:27:10.459379+00:00",
+  "created_at": "2026-09-21T17:46:28.666893+00:00",
   "pages_saved": 8,
   "urls_visited": 21,
+  "page_requests_attempted": 21,
   "sitemaps_checked": 3,
   "remaining_queue": 0,
+  "crawl_complete": true,
+  "crawl_limited": false,
+  "crawl_limit_reasons": [],
   "stopped_by_page_limit": false,
+  "stopped_by_request_limit": false,
+  "stopped_by_time_limit": false,
+  "limits": {
+    "max_pages": 400,
+    "max_requests": 500,
+    "max_queue_size": 2000,
+    "max_crawl_seconds": 900.0,
+    "max_sitemaps": 50
+  },
+  "urls_skipped_by_reason": {},
+  "duration_seconds": 5.297,
   "errors": [
     {
-      "url": "https://www.corcillum.com.au/sitemap.xml",
-      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/sitemap.xml"
+      "url": "https://www.corcillum.com.au/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/wp-sitemap.xml"
     },
     {
       "url": "https://www.corcillum.com.au/sitemap_index.xml",
       "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/sitemap_index.xml"
     },
     {
-      "url": "https://www.corcillum.com.au/wp-sitemap.xml",
-      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/wp-sitemap.xml"
+      "url": "https://www.corcillum.com.au/sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/sitemap.xml"
+    },
+    {
+      "url": "https://www.corcillum.com.au/services",
+      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/services"
+    },
+    {
+      "url": "https://www.corcillum.com.au/about",
+      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/about"
     },
     {
       "url": "https://www.corcillum.com.au/pricing",
       "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/pricing"
     },
     {
-      "url": "https://www.corcillum.com.au/contact/contact-c",
-      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/contact/contact-c"
+      "url": "https://www.corcillum.com.au/contact/contact-b",
+      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/contact/contact-b"
+    },
+    {
+      "url": "https://www.corcillum.com.au/blog-grids/blog-b",
+      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/blog-grids/blog-b"
     },
     {
       "url": "https://www.corcillum.com.au/home/home-b",
       "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/home/home-b"
     },
     {
-      "url": "https://www.corcillum.com.au/case-studies",
-      "error": "401 Client Error: Unauthorized for url: https://www.corcillum.com.au/case-studies"
+      "url": "https://www.corcillum.com.au/blog-grids/blog-c",
+      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/blog-grids/blog-c"
+    },
+    {
+      "url": "https://www.corcillum.com.au/contact/contact-c",
+      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/contact/contact-c"
+    },
+    {
+      "url": "https://www.corcillum.com.au/contact/contact-a",
+      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/contact/contact-a"
     },
     {
       "url": "https://www.corcillum.com.au/blog-grids/blog-a",
@@ -45,32 +80,12 @@
       "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/home/home-c"
     },
     {
-      "url": "https://www.corcillum.com.au/services",
-      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/services"
-    },
-    {
-      "url": "https://www.corcillum.com.au/contact/contact-a",
-      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/contact/contact-a"
-    },
-    {
-      "url": "https://www.corcillum.com.au/blog-grids/blog-c",
-      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/blog-grids/blog-c"
-    },
-    {
-      "url": "https://www.corcillum.com.au/blog-grids/blog-b",
-      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/blog-grids/blog-b"
-    },
-    {
-      "url": "https://www.corcillum.com.au/about",
-      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/about"
-    },
-    {
       "url": "https://www.corcillum.com.au/faq",
       "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/faq"
     },
     {
-      "url": "https://www.corcillum.com.au/contact/contact-b",
-      "error": "404 Client Error: Not Found for url: https://www.corcillum.com.au/contact/contact-b"
+      "url": "https://www.corcillum.com.au/case-studies",
+      "error": "401 Client Error: Unauthorized for url: https://www.corcillum.com.au/case-studies"
     }
   ]
 }

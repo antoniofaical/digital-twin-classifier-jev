@@ -1,12 +1,29 @@
 {
   "site_name": "Pumas-AI",
   "root_url": "https://pumas.ai/",
-  "created_at": "2026-09-21T16:22:46.366038+00:00",
-  "pages_saved": 142,
-  "urls_visited": 146,
+  "created_at": "2026-09-21T17:44:39.690302+00:00",
+  "pages_saved": 135,
+  "urls_visited": 147,
+  "page_requests_attempted": 146,
   "sitemaps_checked": 3,
   "remaining_queue": 0,
+  "crawl_complete": true,
+  "crawl_limited": false,
+  "crawl_limit_reasons": [],
   "stopped_by_page_limit": false,
+  "stopped_by_request_limit": false,
+  "stopped_by_time_limit": false,
+  "limits": {
+    "max_pages": 400,
+    "max_requests": 500,
+    "max_queue_size": 2000,
+    "max_crawl_seconds": 900.0,
+    "max_sitemaps": 50
+  },
+  "urls_skipped_by_reason": {
+    "duplicate_content": 7
+  },
+  "duration_seconds": 103.75,
   "errors": [
     {
       "url": "https://pumas.ai/wp-sitemap.xml",

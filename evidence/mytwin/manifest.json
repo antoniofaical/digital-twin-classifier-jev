@@ -1,12 +1,29 @@
 {
   "site_name": "mytwin",
   "root_url": "https://mytwin.care/en",
-  "created_at": "2026-09-21T16:29:42.295395+00:00",
-  "pages_saved": 55,
+  "created_at": "2026-09-21T17:50:43.093872+00:00",
+  "pages_saved": 54,
   "urls_visited": 55,
+  "page_requests_attempted": 55,
   "sitemaps_checked": 3,
   "remaining_queue": 0,
+  "crawl_complete": true,
+  "crawl_limited": false,
+  "crawl_limit_reasons": [],
   "stopped_by_page_limit": false,
+  "stopped_by_request_limit": false,
+  "stopped_by_time_limit": false,
+  "limits": {
+    "max_pages": 400,
+    "max_requests": 500,
+    "max_queue_size": 2000,
+    "max_crawl_seconds": 900.0,
+    "max_sitemaps": 50
+  },
+  "urls_skipped_by_reason": {
+    "duplicate_content": 1
+  },
+  "duration_seconds": 15.328,
   "errors": [
     {
       "url": "https://mytwin.care/sitemap_index.xml",

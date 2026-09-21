@@ -1,12 +1,27 @@
 {
   "site_name": "Opyl",
   "root_url": "https://opyl.netlify.app/",
-  "created_at": "2026-09-21T16:22:23.456096+00:00",
+  "created_at": "2026-09-21T17:43:56.725902+00:00",
   "pages_saved": 51,
-  "urls_visited": 51,
+  "urls_visited": 79,
+  "page_requests_attempted": 51,
   "sitemaps_checked": 3,
   "remaining_queue": 0,
+  "crawl_complete": true,
+  "crawl_limited": false,
+  "crawl_limit_reasons": [],
   "stopped_by_page_limit": false,
+  "stopped_by_request_limit": false,
+  "stopped_by_time_limit": false,
+  "limits": {
+    "max_pages": 400,
+    "max_requests": 500,
+    "max_queue_size": 2000,
+    "max_crawl_seconds": 900.0,
+    "max_sitemaps": 50
+  },
+  "urls_skipped_by_reason": {},
+  "duration_seconds": 60.781,
   "errors": [
     {
       "url": "https://opyl.netlify.app/sitemap_index.xml",
