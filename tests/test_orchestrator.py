@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import threading
 from typing import Any
+
+import pytest
 
 import orchestrator
 
@@ -98,7 +101,8 @@ def test_classify_mode_prompts_for_percentage_without_scraping(
         }
 
     monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "test-secret")
-    monkeypatch.setattr("builtins.input", lambda _: "50")
+    answers = iter(["50", "y"])
+    monkeypatch.setattr("builtins.input", lambda _: next(answers))
     _configure_test_site(tmp_path, monkeypatch)
     monkeypatch.setattr(orchestrator, "scrape_site", fail_scrape_site)
     monkeypatch.setattr(orchestrator, "classify_site", fake_classify_site)
@@ -128,6 +132,134 @@ def test_zero_percentage_cancels_without_jev_call(
     orchestrator.main(["--mode", "classify"])
 
     assert "no API calls were made" in capsys.readouterr().out
+
+
+def test_site_intent_selects_only_requested_sites(tmp_path, monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_scrape_site(**kwargs):
+        name = kwargs["site_name"]
+        calls.append(name)
+        site_dir = tmp_path / "evidence" / name
+        _write_evidence(site_dir)
+        return site_dir
+
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(
+        orchestrator,
+        "SITES",
+        [
+            {"name": "site1", "url": "https://one.example/"},
+            {"name": "site2", "url": "https://two.example/"},
+        ],
+    )
+    monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
+
+    orchestrator.main(["--mode", "crawl", "--site", "site2"])
+
+    assert calls == ["site2"]
+
+
+def test_crawl_bulk_processes_sites_concurrently(tmp_path, monkeypatch) -> None:
+    barrier = threading.Barrier(2)
+    calls: list[str] = []
+
+    def fake_scrape_site(**kwargs):
+        name = kwargs["site_name"]
+        calls.append(name)
+        barrier.wait(timeout=2)
+        site_dir = tmp_path / "evidence" / name
+        _write_evidence(site_dir)
+        return site_dir
+
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(
+        orchestrator,
+        "SITES",
+        [
+            {"name": "site1", "url": "https://one.example/"},
+            {"name": "site2", "url": "https://two.example/"},
+        ],
+    )
+    monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
+
+    orchestrator.main(["--mode", "crawl", "--sites", "all", "--workers", "2"])
+
+    assert set(calls) == {"site1", "site2"}
+
+
+def test_classify_bulk_prompts_once_and_applies_percentage_per_site(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    sites = [
+        {"name": "site1", "url": "https://one.example/"},
+        {"name": "site2", "url": "https://two.example/"},
+    ]
+    for site in sites:
+        _write_evidence(tmp_path / "evidence" / site["name"])
+    prompts: list[str] = []
+    answers = iter(["50", "y"])
+    calls: dict[str, dict[str, Any]] = {}
+
+    def fake_input(prompt: str) -> str:
+        prompts.append(prompt)
+        return next(answers)
+
+    def fake_classify_site(**kwargs):
+        calls[kwargs["site_name"]] = kwargs
+        return {
+            "evidence_is_partial": True,
+            "provisional_classification": "not_digital_twin",
+        }
+
+    monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "test-secret")
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(orchestrator, "SITES", sites)
+    monkeypatch.setattr("builtins.input", fake_input)
+    monkeypatch.setattr(orchestrator, "classify_site", fake_classify_site)
+
+    orchestrator.main(["--mode", "classify", "--workers", "2"])
+
+    assert len(prompts) == 2
+    assert set(calls) == {"site1", "site2"}
+    assert all(call["evidence_percentage"] == 50 for call in calls.values())
+    output = capsys.readouterr().out
+    assert "Sites ready: 2" in output
+    assert "Jev requests: 2" in output
+
+
+def test_bulk_failure_does_not_cancel_other_sites(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    completed: list[str] = []
+
+    def fake_scrape_site(**kwargs):
+        name = kwargs["site_name"]
+        if name == "site1":
+            raise RuntimeError("simulated failure")
+        completed.append(name)
+        site_dir = tmp_path / "evidence" / name
+        _write_evidence(site_dir)
+        return site_dir
+
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(
+        orchestrator,
+        "SITES",
+        [
+            {"name": "site1", "url": "https://one.example/"},
+            {"name": "site2", "url": "https://two.example/"},
+        ],
+    )
+    monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
+
+    with pytest.raises(orchestrator.BulkExecutionError):
+        orchestrator.main(["--mode", "crawl", "--workers", "2"])
+
+    assert completed == ["site2"]
+    output = capsys.readouterr().out
+    assert "selected=2, completed=1, failed=1" in output
+    assert "[site1] failed: RuntimeError: simulated failure" in output
 
 
 def test_translation_requires_confirmation_before_api_calls(
