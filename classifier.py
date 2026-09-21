@@ -85,6 +85,48 @@ def evidence_chunks(evidence_file: Path, chunk_chars: int) -> Iterator[dict[str,
         yield {"pages": pages}
 
 
+def representative_evidence_chunk(
+    evidence_file: Path, chunk_chars: int
+) -> dict[str, Any]:
+    """Sample all saved pages fairly within one bounded chunk."""
+    records: list[dict[str, str]] = []
+    with evidence_file.open(encoding="utf-8") as source:
+        for line in source:
+            record = json.loads(line)
+            text = str(record.get("text", "")).strip()
+            if text:
+                records.append({"url": str(record.get("url", "")), "text": text})
+
+    offsets = [0] * len(records)
+    samples = [""] * len(records)
+    active = list(range(len(records)))
+    remaining = chunk_chars
+
+    while remaining > 0 and active:
+        share = max(1, remaining // len(active))
+        next_active: list[int] = []
+        for index in active:
+            if remaining == 0:
+                break
+            available = len(records[index]["text"]) - offsets[index]
+            take = min(share, available, remaining)
+            start = offsets[index]
+            samples[index] += records[index]["text"][start : start + take]
+            offsets[index] += take
+            remaining -= take
+            if offsets[index] < len(records[index]["text"]):
+                next_active.append(index)
+        active = next_active
+
+    return {
+        "pages": [
+            {"url": record["url"], "text": sample}
+            for record, sample in zip(records, samples, strict=True)
+            if sample
+        ]
+    }
+
+
 def decide(
     probabilities: dict[str, float],
     coherent_core_evidence: bool,
@@ -122,6 +164,8 @@ def classify_site(
     """Send selected evidence chunks to Jev and save the result."""
     if not api_key:
         raise ValueError("A Jev API key must be passed by orchestrator.py")
+    if chunk_chars <= 0:
+        raise ValueError("chunk_chars must be a positive integer")
     if max_chunks < 0:
         raise ValueError("max_chunks must be zero or a positive integer")
 
@@ -133,7 +177,16 @@ def classify_site(
     if not all_chunks:
         raise ValueError(f"No textual evidence found in {evidence_file}")
 
-    chunks = all_chunks[:max_chunks] if max_chunks else all_chunks
+    sampling_strategy = "all_chunks"
+    if max_chunks == 1 and len(all_chunks) > 1:
+        chunks = [representative_evidence_chunk(evidence_file, chunk_chars)]
+        sampling_strategy = "balanced_across_pages"
+    elif max_chunks:
+        chunks = all_chunks[:max_chunks]
+        sampling_strategy = "first_chunks"
+    else:
+        chunks = all_chunks
+
     chunks_were_limited = len(chunks) < len(all_chunks)
 
     crawl_was_limited = False
@@ -181,6 +234,7 @@ def classify_site(
                 json.dumps(
                     {
                         "chunk": number,
+                        "sampling_strategy": sampling_strategy,
                         "urls": list(
                             dict.fromkeys(page["url"] for page in chunk["pages"])
                         ),
@@ -212,6 +266,7 @@ def classify_site(
         "evidence_is_partial": evidence_is_partial,
         "crawl_was_limited": crawl_was_limited,
         "chunks_were_limited": chunks_were_limited,
+        "sampling_strategy": sampling_strategy,
         "criterion_probabilities": aggregate,
         "chunks_supporting_all_core_criteria": coherent_chunks,
         "evidence_chunks_available": len(all_chunks),
