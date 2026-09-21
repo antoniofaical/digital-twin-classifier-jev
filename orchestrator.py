@@ -5,12 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import sys
+import threading
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TextIO, TypeVar
 
 from classifier import (
     classify_site,
@@ -63,6 +67,130 @@ T = TypeVar("T")
 
 class BulkExecutionError(RuntimeError):
     """Raised after all possible sites finish when one or more sites failed."""
+
+
+class TerminalProgress:
+    """Render thread-safe bulk progress on one persistent terminal line."""
+
+    def __init__(
+        self,
+        total: int,
+        *,
+        enabled: bool,
+        stream: TextIO | None = None,
+    ) -> None:
+        self.total = total
+        self.enabled = enabled
+        self.stream = stream or sys.stdout
+        self.successful = 0
+        self.failed = 0
+        self.cancelled = 0
+        self.reused = 0
+        self.active = 0
+        self._terminal_sites: set[str] = set()
+        self._started_at = time.monotonic()
+        self._last_width = 0
+        self._running = False
+        self._lock = threading.RLock()
+
+    @property
+    def completed(self) -> int:
+        return len(self._terminal_sites)
+
+    def start(self) -> None:
+        with self._lock:
+            if self._running:
+                return
+            self._running = True
+            self._started_at = time.monotonic()
+            self._draw_locked()
+
+    def stop(self) -> None:
+        with self._lock:
+            if not self._running:
+                return
+            self.active = 0
+            if self.enabled:
+                self._draw_locked()
+                self.stream.write("\n")
+                self.stream.flush()
+            self._running = False
+
+    def log(self, message: str) -> None:
+        with self._lock:
+            if self.enabled and self._running:
+                self._clear_locked()
+                self.stream.write(f"{message}\n")
+                self._draw_locked()
+                self.stream.flush()
+            else:
+                print(message, file=self.stream, flush=True)
+
+    def set_active(self, active: int) -> None:
+        with self._lock:
+            self.active = max(0, active)
+            self._draw_locked()
+
+    def record_terminal(
+        self,
+        site_name: str,
+        status: str,
+        *,
+        reused: bool = False,
+    ) -> None:
+        with self._lock:
+            if site_name in self._terminal_sites:
+                raise ValueError(f"site progress already recorded: {site_name}")
+            if status == "completed":
+                self.successful += 1
+                self.reused += int(reused)
+            elif status == "failed":
+                self.failed += 1
+            elif status == "cancelled":
+                self.cancelled += 1
+            else:
+                raise ValueError(f"unknown terminal progress status: {status}")
+            self._terminal_sites.add(site_name)
+            if self.completed > self.total:
+                raise ValueError("completed site progress exceeds selected sites")
+            self._draw_locked()
+
+    def _line(self) -> str:
+        percentage = (
+            100 if self.total == 0 else round(100 * self.completed / self.total)
+        )
+        elapsed = max(0, int(time.monotonic() - self._started_at))
+        hours, remainder = divmod(elapsed, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        details = (
+            f" {self.completed}/{self.total} {percentage:3d}% "
+            f"completed={self.successful} reused={self.reused} "
+            f"failed={self.failed}"
+            f"{' cancelled=' + str(self.cancelled) if self.cancelled else ''} "
+            f"active={self.active} "
+            f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        )
+        columns = shutil.get_terminal_size(fallback=(100, 24)).columns
+        bar_width = min(40, max(0, columns - len(details) - len("Sites  []") - 1))
+        if bar_width < 8:
+            return f"Sites{details}"
+        filled = min(bar_width, round(bar_width * self.completed / max(1, self.total)))
+        bar = "█" * filled + "-" * (bar_width - filled)
+        return f"Sites  [{bar}]{details}"
+
+    def _clear_locked(self) -> None:
+        if not self.enabled:
+            return
+        self.stream.write("\r" + " " * self._last_width + "\r")
+
+    def _draw_locked(self) -> None:
+        if not self.enabled or not self._running:
+            return
+        line = self._line()
+        padding = " " * max(0, self._last_width - len(line))
+        self.stream.write(f"\r{line}{padding}")
+        self.stream.flush()
+        self._last_width = len(line)
 
 
 @dataclass(frozen=True)
@@ -186,6 +314,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="count",
         default=0,
         help="show page progress; use -vv for HTTP, sitemap, robots, and error details",
+    )
+    parser.add_argument(
+        "--no-progress",
+        action="store_true",
+        help="disable the persistent bulk progress bar",
     )
     parser.add_argument(
         "--percentage",
@@ -413,30 +546,67 @@ def translation_workload(chunks: list[dict[str, Any]], mode: str) -> tuple[int, 
     return request_count, character_count
 
 
+def terminal_progress_enabled(*, disabled: bool, stream: TextIO | None = None) -> bool:
+    output = stream or sys.stdout
+    is_terminal = getattr(output, "isatty", None)
+    return not disabled and callable(is_terminal) and bool(is_terminal())
+
+
 def run_site_jobs(
     sites: list[dict[str, str]],
     workers: int,
     operation: Callable[[dict[str, str]], T],
+    *,
+    progress: TerminalProgress | None = None,
+    successes_are_terminal: bool = False,
+    reused_names: set[str] | None = None,
 ) -> tuple[dict[str, T], dict[str, str]]:
     """Run isolated site jobs and collect every result before reporting failures."""
     results: dict[str, T] = {}
     errors: dict[str, str] = {}
+    reused_names = reused_names or set()
+
+    def record(site: dict[str, str], *, succeeded: bool) -> None:
+        if progress is None:
+            return
+        if succeeded and successes_are_terminal:
+            progress.record_terminal(
+                site["name"],
+                "completed",
+                reused=site["name"] in reused_names,
+            )
+        elif not succeeded:
+            progress.record_terminal(site["name"], "failed")
+
+    def update_active(remaining: int) -> None:
+        if progress is not None:
+            progress.set_active(min(workers, remaining))
+
+    update_active(len(sites))
     if workers == 1 or len(sites) <= 1:
-        for site in sites:
+        for index, site in enumerate(sites, start=1):
             try:
                 results[site["name"]] = operation(site)
             except Exception as exc:  # noqa: BLE001 - isolate failures in a bulk run
                 errors[site["name"]] = f"{type(exc).__name__}: {exc}"
+                record(site, succeeded=False)
+            else:
+                record(site, succeeded=True)
+            update_active(len(sites) - index)
         return results, errors
 
     with ThreadPoolExecutor(max_workers=min(workers, len(sites))) as executor:
         futures = {executor.submit(operation, site): site for site in sites}
-        for future in as_completed(futures):
+        for index, future in enumerate(as_completed(futures), start=1):
             site = futures[future]
             try:
                 results[site["name"]] = future.result()
             except Exception as exc:  # noqa: BLE001 - isolate failures in a bulk run
                 errors[site["name"]] = f"{type(exc).__name__}: {exc}"
+                record(site, succeeded=False)
+            else:
+                record(site, succeeded=True)
+            update_active(len(sites) - index)
     return results, errors
 
 
@@ -563,6 +733,20 @@ def main(argv: list[str] | None = None) -> None:
         print("CLASSIFICATION: no API calls occur before bulk approval.")
     print(f"Selected {len(sites)} site(s); using up to {args.workers} worker(s).")
 
+    progress: TerminalProgress | None = None
+    if mode == "crawl":
+        progress = TerminalProgress(
+            len(sites),
+            enabled=terminal_progress_enabled(disabled=args.no_progress),
+        )
+        progress.start()
+
+    def emit(message: str) -> None:
+        if progress is None:
+            print(message, flush=True)
+        else:
+            progress.log(message)
+
     errors: dict[str, str] = {}
     reused_names: set[str] = set()
     sites_to_scrape = list(sites)
@@ -578,7 +762,7 @@ def main(argv: list[str] | None = None) -> None:
             )
             if is_recent:
                 reused_names.add(site["name"])
-                print(
+                emit(
                     f"[{site['name']}] reusing crawl completed "
                     f"{age_hours:.1f} hour(s) ago"
                 )
@@ -591,15 +775,16 @@ def main(argv: list[str] | None = None) -> None:
             removed = clean_generated_artifacts(site_dirs[site["name"]])
             if removed:
                 reason = "stale" if mode == "crawl" else "previous"
-                print(
+                emit(
                     f"[{site['name']}] removed {reason} generated artifacts: "
                     f"{', '.join(removed)}"
                 )
-            print(f"[{site['name']}] scraping {site['url']}")
+            emit(f"[{site['name']}] scraping {site['url']}")
             return scrape_site(
                 site_name=site["name"],
                 root_url=site["url"],
                 evidence_root=EVIDENCE_ROOT,
+                log_callback=emit,
                 **scraper_config,
             )
 
@@ -607,6 +792,7 @@ def main(argv: list[str] | None = None) -> None:
             sites_to_scrape,
             args.workers,
             scrape,
+            progress=progress,
         )
         site_dirs.update(scraped)
         errors.update(scrape_errors)
@@ -636,8 +822,13 @@ def main(argv: list[str] | None = None) -> None:
             ready_sites,
             args.workers,
             crawl_result,
+            progress=progress,
+            successes_are_terminal=True,
+            reused_names=reused_names,
         )
         errors.update(count_errors)
+        if progress is not None:
+            progress.stop()
         for site in sites:
             if site["name"] in chunk_counts:
                 print(
@@ -744,9 +935,17 @@ def main(argv: list[str] | None = None) -> None:
 
     plans_by_name = {plan.site["name"]: plan for plan in plans}
 
+    progress = TerminalProgress(
+        len(sites),
+        enabled=terminal_progress_enabled(disabled=args.no_progress),
+    )
+    progress.start()
+    for failed_name in errors:
+        progress.record_terminal(failed_name, "failed")
+
     def classify(site: dict[str, str]) -> dict[str, Any]:
         plan = plans_by_name[site["name"]]
-        print(f"[{site['name']}] classifying saved evidence")
+        emit(f"[{site['name']}] classifying saved evidence")
         return classify_site(
             site_name=site["name"],
             evidence_dir=plan.site_dir,
@@ -759,8 +958,11 @@ def main(argv: list[str] | None = None) -> None:
         classifiable_sites,
         args.workers,
         classify,
+        progress=progress,
+        successes_are_terminal=True,
     )
     errors.update(classification_errors)
+    progress.stop()
     for site in sites:
         result = results.get(site["name"])
         if result is None:
