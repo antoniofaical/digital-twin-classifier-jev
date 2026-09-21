@@ -16,7 +16,8 @@ SITES = [
 EVIDENCE_ROOT = Path("evidence")
 
 # Keep secrets outside source control. classifier.py receives this value in memory.
-JEV_API_KEY = os.getenv("TYPESAFE_API_KEY", "")
+JEV_API_KEY_ENV = "TYPESAFE_PSN_DIG_TWIN_CLASS"
+JEV_API_KEY = os.getenv(JEV_API_KEY_ENV, "")
 
 RUN_SCRAPER = True
 RUN_CLASSIFIER = True
@@ -45,7 +46,7 @@ CLASSIFIER_CONFIG = {
 def main() -> None:
     if RUN_CLASSIFIER and not JEV_API_KEY:
         raise RuntimeError(
-            "TYPESAFE_API_KEY is not set. Set it in the environment before running."
+            f"{JEV_API_KEY_ENV} is not set. Set it in the environment before running."
         )
 
     EVIDENCE_ROOT.mkdir(parents=True, exist_ok=True)
