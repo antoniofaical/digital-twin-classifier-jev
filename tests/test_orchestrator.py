@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import threading
 from datetime import datetime, timedelta, timezone
@@ -8,6 +9,16 @@ from typing import Any
 import pytest
 
 import orchestrator
+
+
+class TTYBuffer(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+class NonTTYBuffer(io.StringIO):
+    def isatty(self) -> bool:
+        return False
 
 
 def _write_evidence(site_dir) -> None:
@@ -66,6 +77,79 @@ def test_crawl_mode_never_requires_key_or_calls_classifier(
     output = capsys.readouterr().out
     assert "no Jev or DeepL API calls will be made" in output
     assert "1 Jev request(s) would be required" in output
+
+
+def test_terminal_progress_renders_logs_and_terminal_states() -> None:
+    stream = TTYBuffer()
+    progress = orchestrator.TerminalProgress(3, enabled=True, stream=stream)
+
+    progress.start()
+    progress.set_active(2)
+    progress.log("[site1] page 1 GET https://example.com")
+    progress.record_terminal("site1", "completed", reused=True)
+    progress.record_terminal("site2", "failed")
+    progress.record_terminal("site3", "cancelled")
+    progress.stop()
+
+    output = stream.getvalue()
+    assert "[site1] page 1 GET https://example.com\n" in output
+    assert "Sites" in output
+    assert "3/3 100%" in output
+    assert "completed=1" in output
+    assert "reused=1" in output
+    assert "failed=1" in output
+    assert progress.completed == 3
+    assert progress.active == 0
+
+
+def test_terminal_progress_rejects_duplicate_terminal_site() -> None:
+    progress = orchestrator.TerminalProgress(1, enabled=False)
+    progress.record_terminal("site1", "completed")
+
+    with pytest.raises(ValueError, match="already recorded"):
+        progress.record_terminal("site1", "failed")
+
+
+def test_progress_auto_disables_for_non_tty_and_explicit_flag() -> None:
+    assert orchestrator.terminal_progress_enabled(disabled=False, stream=TTYBuffer())
+    assert not orchestrator.terminal_progress_enabled(
+        disabled=False, stream=NonTTYBuffer()
+    )
+    assert not orchestrator.terminal_progress_enabled(disabled=True, stream=TTYBuffer())
+    assert orchestrator.parse_args(["--mode", "crawl", "--no-progress"]).no_progress
+
+
+def test_run_site_jobs_tracks_concurrent_success_failure_and_reuse() -> None:
+    sites = [
+        {"name": "site1", "url": "https://one.example/"},
+        {"name": "site2", "url": "https://two.example/"},
+        {"name": "site3", "url": "https://three.example/"},
+    ]
+    barrier = threading.Barrier(3)
+    progress = orchestrator.TerminalProgress(3, enabled=False)
+
+    def operation(site):
+        barrier.wait(timeout=2)
+        if site["name"] == "site3":
+            raise RuntimeError("simulated failure")
+        return site["name"]
+
+    results, errors = orchestrator.run_site_jobs(
+        sites,
+        3,
+        operation,
+        progress=progress,
+        successes_are_terminal=True,
+        reused_names={"site2"},
+    )
+
+    assert set(results) == {"site1", "site2"}
+    assert set(errors) == {"site3"}
+    assert progress.completed == 3
+    assert progress.successful == 2
+    assert progress.reused == 1
+    assert progress.failed == 1
+    assert progress.active == 0
 
 
 def test_smoke_mode_preserves_page_and_chunk_limits(tmp_path, monkeypatch) -> None:
@@ -220,6 +304,13 @@ def test_recent_full_crawl_is_reused_and_force_crawl_bypasses_cache(
 ) -> None:
     site_dir = tmp_path / "evidence" / "site1"
     calls = 0
+    progress_instances: list[orchestrator.TerminalProgress] = []
+    progress_class = orchestrator.TerminalProgress
+
+    class TrackingProgress(progress_class):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            progress_instances.append(self)
 
     def fake_scrape_site(**kwargs):
         nonlocal calls
@@ -230,10 +321,14 @@ def test_recent_full_crawl_is_reused_and_force_crawl_bypasses_cache(
 
     _configure_test_site(tmp_path, monkeypatch)
     monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
+    monkeypatch.setattr(orchestrator, "TerminalProgress", TrackingProgress)
 
     orchestrator.main(["--mode", "crawl"])
     orchestrator.main(["--mode", "crawl"])
     assert calls == 1
+    assert progress_instances[1].completed == 1
+    assert progress_instances[1].successful == 1
+    assert progress_instances[1].reused == 1
     assert "reusing crawl completed" in capsys.readouterr().out
 
     orchestrator.main(["--mode", "crawl", "--force-crawl"])
@@ -479,12 +574,17 @@ def test_rejected_translation_confirmation_cancels_all_api_calls(
         del kwargs
         raise AssertionError("rejected confirmation must not call APIs")
 
+    def fail_progress(*args, **kwargs):
+        del args, kwargs
+        raise AssertionError("rejected preflight must not start progress")
+
     monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "jev-secret")
     monkeypatch.setenv(orchestrator.DEEPL_API_KEY_ENV, "deepl-secret:fx")
     monkeypatch.setattr("builtins.input", lambda _: "n")
     _configure_test_site(tmp_path, monkeypatch)
     monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
     monkeypatch.setattr(orchestrator, "classify_site", fail_classify_site)
+    monkeypatch.setattr(orchestrator, "TerminalProgress", fail_progress)
 
     orchestrator.main(["--mode", "smoke", "--translation", "auto"])
 

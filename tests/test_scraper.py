@@ -133,6 +133,35 @@ def test_scrape_site_creates_isolated_evidence_folder(
     assert "characters=" in output
 
 
+def test_verbose_logs_can_be_routed_to_progress_callback(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    root = "https://example.com/"
+    fake_session = FakeSession(
+        {
+            root: FakeResponse(
+                root,
+                text="<html><body>home</body></html>",
+            )
+        }
+    )
+    messages: list[str] = []
+    monkeypatch.setattr(scraper.requests, "Session", lambda: fake_session)
+
+    scraper.scrape_site(
+        site_name="site1",
+        root_url=root,
+        evidence_root=tmp_path / "evidence",
+        respect_robots=False,
+        verbose=1,
+        log_callback=messages.append,
+    )
+
+    assert messages[0] == "[site1] page 1 GET https://example.com/"
+    assert messages[-1].startswith("[site1] saved 1 page(s)")
+    assert capsys.readouterr().out == ""
+
+
 def test_language_hint_reads_html_lang_attribute() -> None:
     response = FakeResponse(
         "https://example.com/",

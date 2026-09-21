@@ -9,6 +9,7 @@ import re
 import unicodedata
 import xml.etree.ElementTree as ET
 from collections import deque
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qsl, urldefrag, urlencode, urljoin, urlparse, urlunparse
@@ -175,6 +176,7 @@ def scrape_site(
     respect_robots: bool = True,
     request_timeout: int = 20,
     verbose: int = 0,
+    log_callback: Callable[[str], None] | None = None,
 ) -> Path:
     """Crawl one site and create evidence/<site_name>/evidence.jsonl."""
     root_url = root_url if re.match(r"^https?://", root_url) else "https://" + root_url
@@ -184,7 +186,11 @@ def scrape_site(
 
     def log(level: int, message: str) -> None:
         if verbose >= level:
-            print(f"[{site_name}] {message}", flush=True)
+            rendered = f"[{site_name}] {message}"
+            if log_callback is None:
+                print(rendered, flush=True)
+            else:
+                log_callback(rendered)
 
     session = requests.Session()
     session.headers.update({"User-Agent": USER_AGENT})
