@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 import requests
 
@@ -145,7 +146,9 @@ def classify_site(
                     "model": model,
                     "state": {
                         "company": site_name,
-                        "instruction": "Judge only capabilities explicitly supported here.",
+                        "instruction": (
+                            "Judge only capabilities explicitly supported here."
+                        ),
                         **chunk,
                     },
                     "questions": QUESTIONS,
@@ -157,9 +160,7 @@ def classify_site(
             probabilities = {
                 name: float(payload["answers"][name]["noul"]) for name in QUESTIONS
             }
-            if all(
-                probabilities[name] >= positive_threshold for name in CORE_CRITERIA
-            ):
+            if all(probabilities[name] >= positive_threshold for name in CORE_CRITERIA):
                 coherent_chunks.append(number)
             for name, probability in probabilities.items():
                 aggregate[name] = max(aggregate[name], probability)
@@ -167,7 +168,9 @@ def classify_site(
                 json.dumps(
                     {
                         "chunk": number,
-                        "urls": list(dict.fromkeys(page["url"] for page in chunk["pages"])),
+                        "urls": list(
+                            dict.fromkeys(page["url"] for page in chunk["pages"])
+                        ),
                         "probabilities": probabilities,
                     },
                     ensure_ascii=False,
