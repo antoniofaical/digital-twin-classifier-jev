@@ -9,7 +9,6 @@ from typing import Any
 
 import requests
 
-
 JEV_ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 
 QUESTIONS = {
