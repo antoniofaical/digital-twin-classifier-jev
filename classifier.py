@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Iterator
 from math import ceil
@@ -11,6 +12,8 @@ from typing import Any
 import requests
 
 JEV_ENDPOINT = "https://api.typesafe.ai/v1/systemone"
+DEEPL_FREE_ENDPOINT = "https://api-free.deepl.com/v2/translate"
+DEEPL_PRO_ENDPOINT = "https://api.deepl.com/v2/translate"
 
 QUESTIONS = {
     "specific_counterpart": {
@@ -73,14 +76,17 @@ def evidence_chunks(evidence_file: Path, chunk_chars: int) -> Iterator[dict[str,
             text = str(record.get("text", "")).strip()
             if not text:
                 continue
-            url = str(record.get("url", ""))
+            page = {
+                "url": str(record.get("url", "")),
+                "language_hint": str(record.get("language_hint", "")),
+            }
             for start in range(0, len(text), chunk_chars):
                 part = text[start : start + chunk_chars]
                 if pages and size + len(part) > chunk_chars:
                     yield {"pages": pages}
                     pages = []
                     size = 0
-                pages.append({"url": url, "text": part})
+                pages.append({**page, "text": part})
                 size += len(part)
     if pages:
         yield {"pages": pages}
@@ -96,7 +102,13 @@ def representative_evidence_chunk(
             record = json.loads(line)
             text = str(record.get("text", "")).strip()
             if text:
-                records.append({"url": str(record.get("url", "")), "text": text})
+                records.append(
+                    {
+                        "url": str(record.get("url", "")),
+                        "language_hint": str(record.get("language_hint", "")),
+                        "text": text,
+                    }
+                )
 
     offsets = [0] * len(records)
     samples = [""] * len(records)
@@ -121,7 +133,11 @@ def representative_evidence_chunk(
 
     return {
         "pages": [
-            {"url": record["url"], "text": sample}
+            {
+                "url": record["url"],
+                "language_hint": record["language_hint"],
+                "text": sample,
+            }
             for record, sample in zip(records, samples, strict=True)
             if sample
         ]
@@ -137,6 +153,143 @@ def evenly_spaced_indices(total: int, selected: int) -> list[int]:
     return [
         round(position * (total - 1) / (selected - 1)) for position in range(selected)
     ]
+
+
+def select_evidence_chunks(
+    evidence_file: Path,
+    chunk_chars: int,
+    *,
+    max_chunks: int = 0,
+    evidence_percentage: float | None = None,
+) -> tuple[list[dict[str, Any]], list[int], str, int]:
+    all_chunks = list(evidence_chunks(evidence_file, chunk_chars))
+    if not all_chunks:
+        raise ValueError(f"No textual evidence found in {evidence_file}")
+
+    total_chunks = len(all_chunks)
+    if evidence_percentage is not None:
+        selected_count = min(
+            total_chunks,
+            ceil(total_chunks * evidence_percentage / 100),
+        )
+    elif max_chunks:
+        selected_count = min(total_chunks, max_chunks)
+    else:
+        selected_count = total_chunks
+
+    if selected_count == total_chunks:
+        return (
+            all_chunks,
+            list(range(1, total_chunks + 1)),
+            "all_chunks",
+            total_chunks,
+        )
+    if selected_count == 1:
+        return (
+            [representative_evidence_chunk(evidence_file, chunk_chars)],
+            list(range(1, total_chunks + 1)),
+            "balanced_across_pages",
+            total_chunks,
+        )
+
+    selected_indices = evenly_spaced_indices(total_chunks, selected_count)
+    return (
+        [all_chunks[index] for index in selected_indices],
+        [index + 1 for index in selected_indices],
+        "evenly_spaced_chunks",
+        total_chunks,
+    )
+
+
+def deepl_endpoint(api_key: str) -> str:
+    return DEEPL_FREE_ENDPOINT if api_key.endswith(":fx") else DEEPL_PRO_ENDPOINT
+
+
+def is_english_hint(language_hint: str) -> bool:
+    normalized = language_hint.lower().replace("_", "-")
+    return normalized == "en" or normalized.startswith("en-")
+
+
+def translate_chunk(
+    chunk: dict[str, Any],
+    *,
+    api_key: str,
+    mode: str,
+    target_language: str,
+    request_timeout: int,
+) -> tuple[dict[str, Any], list[dict[str, Any]], bool]:
+    """Translate selected page fragments while preserving URL provenance."""
+    pages = [dict(page) for page in chunk["pages"]]
+    candidate_indexes = [
+        index
+        for index, page in enumerate(pages)
+        if mode == "deepl" or not is_english_hint(str(page.get("language_hint", "")))
+    ]
+    records: list[dict[str, Any]] = []
+
+    for index, page in enumerate(pages):
+        if index not in candidate_indexes:
+            records.append(
+                {
+                    "page_index": index,
+                    "url": page["url"],
+                    "status": "skipped_english_hint",
+                    "language_hint": page.get("language_hint", ""),
+                    "source_characters": len(page["text"]),
+                    "original_sha256": hashlib.sha256(
+                        page["text"].encode("utf-8")
+                    ).hexdigest(),
+                }
+            )
+
+    if not candidate_indexes:
+        return {"pages": pages}, records, False
+
+    response = requests.post(
+        deepl_endpoint(api_key),
+        headers={
+            "Authorization": f"DeepL-Auth-Key {api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "text": [pages[index]["text"] for index in candidate_indexes],
+            "target_lang": target_language.upper(),
+            "show_billed_characters": True,
+        },
+        timeout=request_timeout,
+    )
+    response.raise_for_status()
+    translations = response.json().get("translations", [])
+    if len(translations) != len(candidate_indexes):
+        raise ValueError("DeepL returned an unexpected number of translations")
+
+    for index, translation in zip(candidate_indexes, translations, strict=True):
+        original_text = pages[index]["text"]
+        translated_text = str(translation["text"])
+        detected_language = str(translation.get("detected_source_language", ""))
+        pages[index]["text"] = translated_text
+        pages[index]["detected_source_language"] = detected_language
+        pages[index]["translation_target_language"] = target_language.upper()
+        records.append(
+            {
+                "page_index": index,
+                "url": pages[index]["url"],
+                "status": "translated",
+                "language_hint": pages[index].get("language_hint", ""),
+                "detected_source_language": detected_language,
+                "target_language": target_language.upper(),
+                "source_characters": len(original_text),
+                "billed_characters": int(
+                    translation.get("billed_characters", len(original_text))
+                ),
+                "original_sha256": hashlib.sha256(
+                    original_text.encode("utf-8")
+                ).hexdigest(),
+                "translated_text": translated_text,
+            }
+        )
+    records.sort(key=lambda record: record["page_index"])
+    return {"pages": pages}, records, True
 
 
 def decide(
@@ -170,11 +323,14 @@ def classify_site(
     chunk_chars: int = 20_000,
     max_chunks: int = 0,
     evidence_percentage: float | None = None,
+    translation_mode: str = "off",
+    translation_target: str = "EN",
+    deepl_api_key: str = "",
     positive_threshold: float = 0.70,
     negative_threshold: float = 0.30,
     request_timeout: int = 60,
 ) -> dict[str, Any]:
-    """Send selected evidence chunks to Jev and save the result."""
+    """Translate optional evidence, send it to Jev, and save the result."""
     if not api_key:
         raise ValueError("A Jev API key must be passed by orchestrator.py")
     if chunk_chars <= 0:
@@ -187,40 +343,23 @@ def classify_site(
         )
     if evidence_percentage is not None and max_chunks:
         raise ValueError("Use evidence_percentage or max_chunks, not both")
+    if translation_mode not in {"off", "auto", "deepl"}:
+        raise ValueError("translation_mode must be off, auto, or deepl")
+    if translation_mode != "off" and not deepl_api_key:
+        raise ValueError("A DeepL API key is required when translation is enabled")
 
     evidence_file = evidence_dir / "evidence.jsonl"
     if not evidence_file.exists():
         raise FileNotFoundError(f"Evidence not found: {evidence_file}")
 
-    all_chunks = list(evidence_chunks(evidence_file, chunk_chars))
-    if not all_chunks:
-        raise ValueError(f"No textual evidence found in {evidence_file}")
-
-    total_chunks = len(all_chunks)
-    if evidence_percentage is not None:
-        selected_count = min(
-            total_chunks,
-            ceil(total_chunks * evidence_percentage / 100),
+    chunks, source_chunk_numbers, sampling_strategy, total_chunks = (
+        select_evidence_chunks(
+            evidence_file,
+            chunk_chars,
+            max_chunks=max_chunks,
+            evidence_percentage=evidence_percentage,
         )
-    elif max_chunks:
-        selected_count = min(total_chunks, max_chunks)
-    else:
-        selected_count = total_chunks
-
-    if selected_count == total_chunks:
-        chunks = all_chunks
-        source_chunk_numbers = list(range(1, total_chunks + 1))
-        sampling_strategy = "all_chunks"
-    elif selected_count == 1:
-        chunks = [representative_evidence_chunk(evidence_file, chunk_chars)]
-        source_chunk_numbers = list(range(1, total_chunks + 1))
-        sampling_strategy = "balanced_across_pages"
-    else:
-        selected_indices = evenly_spaced_indices(total_chunks, selected_count)
-        chunks = [all_chunks[index] for index in selected_indices]
-        source_chunk_numbers = [index + 1 for index in selected_indices]
-        sampling_strategy = "evenly_spaced_chunks"
-
+    )
     chunks_were_limited = len(chunks) < total_chunks
 
     crawl_was_limited = False
@@ -233,9 +372,37 @@ def classify_site(
     aggregate = {name: 0.0 for name in QUESTIONS}
     coherent_chunks: list[int] = []
     chunk_log = evidence_dir / "jev_chunks.jsonl"
+    translation_log = evidence_dir / "translations.jsonl"
+    translation_requests = 0
+    translated_pages = 0
+    skipped_english_pages = 0
+    billed_characters = 0
 
-    with chunk_log.open("w", encoding="utf-8") as log:
+    with (
+        chunk_log.open("w", encoding="utf-8") as jev_log,
+        translation_log.open("w", encoding="utf-8") as translation_output,
+    ):
         for number, chunk in enumerate(chunks, start=1):
+            if translation_mode != "off":
+                chunk, translation_records, used_deepl = translate_chunk(
+                    chunk,
+                    api_key=deepl_api_key,
+                    mode=translation_mode,
+                    target_language=translation_target,
+                    request_timeout=request_timeout,
+                )
+                translation_requests += int(used_deepl)
+                for record in translation_records:
+                    record["jev_request"] = number
+                    translation_output.write(
+                        json.dumps(record, ensure_ascii=False) + "\n"
+                    )
+                    if record["status"] == "translated":
+                        translated_pages += 1
+                        billed_characters += int(record["billed_characters"])
+                    else:
+                        skipped_english_pages += 1
+
             response = requests.post(
                 JEV_ENDPOINT,
                 headers={
@@ -264,14 +431,15 @@ def classify_site(
                 coherent_chunks.append(number)
             for name, probability in probabilities.items():
                 aggregate[name] = max(aggregate[name], probability)
-            log.write(
+            jev_log.write(
                 json.dumps(
                     {
                         "request": number,
                         "source_chunk": source_chunk_numbers[number - 1]
-                        if sampling_strategy == "evenly_spaced_chunks"
+                        if sampling_strategy != "balanced_across_pages"
                         else None,
                         "sampling_strategy": sampling_strategy,
+                        "translation_mode": translation_mode,
                         "urls": list(
                             dict.fromkeys(page["url"] for page in chunk["pages"])
                         ),
@@ -306,6 +474,14 @@ def classify_site(
         "evidence_percentage_requested": evidence_percentage,
         "sampling_strategy": sampling_strategy,
         "source_chunk_numbers": source_chunk_numbers,
+        "translation": {
+            "mode": translation_mode,
+            "target_language": translation_target.upper(),
+            "deepl_requests": translation_requests,
+            "translated_page_fragments": translated_pages,
+            "skipped_english_page_fragments": skipped_english_pages,
+            "billed_characters": billed_characters,
+        },
         "criterion_probabilities": aggregate,
         "chunks_supporting_all_core_criteria": coherent_chunks,
         "evidence_chunks_available": total_chunks,
