@@ -85,13 +85,18 @@ def test_crawl_mode_never_requires_key_or_calls_classifier(
     assert "1 Jev request(s) would be required" in output
 
 
-def test_terminal_progress_renders_logs_and_terminal_states() -> None:
+def test_terminal_progress_renders_logs_and_terminal_states(monkeypatch) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
     stream = TTYBuffer()
     progress = orchestrator.TerminalProgress(3, enabled=True, stream=stream)
+    progress.add_stage("deepl", label="DeepL", total=1, color="magenta")
+    progress.add_stage("jev", label="Jev", total=2, color="green")
 
     progress.start()
     progress.set_active(2)
     progress.log("[site1] page 1 GET https://example.com")
+    progress.advance_stage("deepl")
+    progress.advance_stage("jev", 2)
     progress.record_terminal("site1", "completed", reused=True)
     progress.record_terminal("site2", "failed")
     progress.record_terminal("site3", "cancelled")
@@ -104,6 +109,10 @@ def test_terminal_progress_renders_logs_and_terminal_states() -> None:
     assert "completed=1" in output
     assert "reused=1" in output
     assert "failed=1" in output
+    assert "DeepL" in output
+    assert "Jev" in output
+    assert orchestrator.ANSI_COLORS["magenta"] in output
+    assert orchestrator.ANSI_COLORS["green"] in output
     assert progress.completed == 3
     assert progress.active == 0
 
@@ -489,6 +498,96 @@ def test_crawl_state_preserves_limit_audit_data(tmp_path) -> None:
     assert state["crawl_limit_reasons"] == ["request_limit"]
 
 
+def test_recover_existing_crawl_writes_state_without_network_calls(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    site = {"name": "site1", "url": "https://example.com/"}
+    site_dir = tmp_path / "evidence" / "site1"
+    _write_evidence(site_dir)
+    completed_at = "2026-09-21T17:42:00+00:00"
+    (site_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "site_name": "site1",
+                "root_url": "https://example.com/",
+                "created_at": completed_at,
+                "pages_saved": 1,
+                "crawl_limited": False,
+                "crawl_limit_reasons": [],
+                "stopped_by_page_limit": False,
+                "errors": [],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fail_scrape_site(**kwargs):
+        del kwargs
+        raise AssertionError("recovery must not access a website")
+
+    monkeypatch.delenv(orchestrator.JEV_API_KEY_ENV, raising=False)
+    monkeypatch.delenv(orchestrator.DEEPL_API_KEY_ENV, raising=False)
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(orchestrator, "SITES", [site])
+    monkeypatch.setattr(orchestrator, "scrape_site", fail_scrape_site)
+
+    orchestrator.main(["--mode", "crawl", "--recover-existing-crawls"])
+
+    state = json.loads(
+        (site_dir / orchestrator.CRAWL_STATE_FILENAME).read_text(encoding="utf-8")
+    )
+    assert state["status"] == "completed"
+    assert state["completed_at"] == completed_at
+    assert state["crawl_signature"]["max_pages"] == orchestrator.DEFAULT_MAX_PAGES
+    assert (site_dir / "evidence.jsonl").exists()
+    output = capsys.readouterr().out
+    assert "no website, Jev, or DeepL calls will be made" in output
+    assert "recovered: pages=1, chunks=1" in output
+    assert "selected=1, recovered=1, skipped=0, failed=0" in output
+
+
+def test_recover_existing_crawl_skips_inconsistent_artifacts(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    site_dir = tmp_path / "evidence" / "site1"
+    _write_evidence(site_dir)
+    manifest = json.loads((site_dir / "manifest.json").read_text())
+    manifest.update(
+        {
+            "site_name": "site1",
+            "root_url": "https://wrong.example/",
+            "created_at": "2026-09-21T17:42:00+00:00",
+        }
+    )
+    (site_dir / "manifest.json").write_text(
+        json.dumps(manifest) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(
+        orchestrator,
+        "SITES",
+        [{"name": "site1", "url": "https://example.com/"}],
+    )
+
+    orchestrator.main(["--mode", "crawl", "--recover-existing-crawls"])
+
+    assert not (site_dir / orchestrator.CRAWL_STATE_FILENAME).exists()
+    output = capsys.readouterr().out
+    assert "skipped: manifest root URL does not match" in output
+    assert "selected=1, recovered=0, skipped=1, failed=0" in output
+
+
+def test_recovery_flag_rejects_incompatible_modes() -> None:
+    with pytest.raises(SystemExit):
+        orchestrator.parse_args(["--mode", "classify", "--recover-existing-crawls"])
+    with pytest.raises(SystemExit):
+        orchestrator.parse_args(
+            ["--mode", "crawl", "--recover-existing-crawls", "--force-crawl"]
+        )
+
+
 def test_classify_uses_safe_directory_for_display_name(tmp_path, monkeypatch) -> None:
     site_dir = tmp_path / "evidence" / "Thoth-BioSimulations"
     _write_evidence(site_dir)
@@ -564,6 +663,49 @@ def test_crawl_bulk_processes_sites_concurrently(tmp_path, monkeypatch) -> None:
     assert set(calls) == {"site1", "site2"}
 
 
+def test_crawl_persists_and_records_each_site_before_other_sites_finish(
+    tmp_path, monkeypatch
+) -> None:
+    fast_recorded = threading.Event()
+    snapshots: list[tuple[str, bool, int]] = []
+    progress_class = orchestrator.TerminalProgress
+
+    class TrackingProgress(progress_class):
+        def record_terminal(self, site_name, status, *, reused=False):
+            super().record_terminal(site_name, status, reused=reused)
+            state_exists = (
+                tmp_path / "evidence" / site_name / orchestrator.CRAWL_STATE_FILENAME
+            ).exists()
+            snapshots.append((site_name, state_exists, self.completed))
+            if site_name == "fast":
+                fast_recorded.set()
+
+    def fake_scrape_site(**kwargs):
+        name = kwargs["site_name"]
+        if name == "slow" and not fast_recorded.wait(timeout=2):
+            raise AssertionError("fast site was not recorded before slow site finished")
+        site_dir = tmp_path / "evidence" / name
+        _write_evidence(site_dir)
+        return site_dir
+
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(
+        orchestrator,
+        "SITES",
+        [
+            {"name": "fast", "url": "https://fast.example/"},
+            {"name": "slow", "url": "https://slow.example/"},
+        ],
+    )
+    monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
+    monkeypatch.setattr(orchestrator, "TerminalProgress", TrackingProgress)
+
+    orchestrator.main(["--mode", "crawl", "--sites", "all", "--workers", "2"])
+
+    assert snapshots[0] == ("fast", True, 1)
+    assert snapshots[1] == ("slow", True, 2)
+
+
 def test_classify_bulk_prompts_once_and_applies_percentage_per_site(
     tmp_path, monkeypatch, capsys
 ) -> None:
@@ -583,6 +725,7 @@ def test_classify_bulk_prompts_once_and_applies_percentage_per_site(
 
     def fake_classify_site(**kwargs):
         calls[kwargs["site_name"]] = kwargs
+        kwargs["progress_callback"]("jev")
         return {
             "evidence_is_partial": True,
             "provisional_classification": "not_digital_twin",
@@ -652,6 +795,8 @@ def test_translation_requires_confirmation_before_api_calls(
 
     def fake_classify_site(**kwargs):
         calls["classifier"] = kwargs
+        kwargs["progress_callback"]("deepl")
+        kwargs["progress_callback"]("jev")
         return {
             "evidence_is_partial": True,
             "provisional_classification": "not_digital_twin",
@@ -686,17 +831,12 @@ def test_rejected_translation_confirmation_cancels_all_api_calls(
         del kwargs
         raise AssertionError("rejected confirmation must not call APIs")
 
-    def fail_progress(*args, **kwargs):
-        del args, kwargs
-        raise AssertionError("rejected preflight must not start progress")
-
     monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "jev-secret")
     monkeypatch.setenv(orchestrator.DEEPL_API_KEY_ENV, "deepl-secret:fx")
     monkeypatch.setattr("builtins.input", lambda _: "n")
     _configure_test_site(tmp_path, monkeypatch)
     monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
     monkeypatch.setattr(orchestrator, "classify_site", fail_classify_site)
-    monkeypatch.setattr(orchestrator, "TerminalProgress", fail_progress)
 
     orchestrator.main(["--mode", "smoke", "--translation", "auto"])
 

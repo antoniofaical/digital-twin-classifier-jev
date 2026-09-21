@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from math import ceil
 from pathlib import Path
 from typing import Any
@@ -329,6 +329,7 @@ def classify_site(
     positive_threshold: float = 0.70,
     negative_threshold: float = 0.30,
     request_timeout: int = 60,
+    progress_callback: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """Translate optional evidence, send it to Jev, and save the result."""
     if not api_key:
@@ -413,6 +414,8 @@ def classify_site(
                         billed_characters += int(record["billed_characters"])
                     else:
                         skipped_english_pages += 1
+                if used_deepl and progress_callback is not None:
+                    progress_callback("deepl")
 
             response = requests.post(
                 JEV_ENDPOINT,
@@ -460,6 +463,8 @@ def classify_site(
                 )
                 + "\n"
             )
+            if progress_callback is not None:
+                progress_callback("jev")
 
     classification, is_digital_twin, requires_review = decide(
         aggregate,
