@@ -120,6 +120,17 @@ def html_text_and_links(url: str, html: str) -> tuple[str, set[str]]:
     return text, links
 
 
+def response_language_hint(response: requests.Response) -> str:
+    header = response.headers.get("content-language", "").split(",", 1)[0].strip()
+    if header:
+        return header
+    if "html" not in response.headers.get("content-type", "").lower():
+        return ""
+    soup = BeautifulSoup(response.text, "html.parser")
+    html_tag = soup.find("html")
+    return str(html_tag.get("lang", "")).strip() if html_tag else ""
+
+
 def extract_response(response: requests.Response) -> tuple[str, set[str]]:
     content_type = response.headers.get("content-type", "").lower()
     if "html" in content_type:
@@ -248,6 +259,7 @@ def scrape_site(
                 {
                     "url": response.url,
                     "content_type": response.headers.get("content-type", ""),
+                    "language_hint": response_language_hint(response),
                     "text": text,
                 }
             )
