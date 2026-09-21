@@ -14,6 +14,15 @@ def _write_evidence(site_dir) -> None:
     )
 
 
+def _configure_test_site(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(
+        orchestrator,
+        "SITES",
+        [{"name": "site1", "url": "https://example.com/"}],
+    )
+
+
 def test_crawl_mode_never_requires_key_or_calls_classifier(
     tmp_path, monkeypatch, capsys
 ) -> None:
@@ -30,12 +39,7 @@ def test_crawl_mode_never_requires_key_or_calls_classifier(
         raise AssertionError("crawl mode must not call Jev")
 
     monkeypatch.delenv(orchestrator.JEV_API_KEY_ENV, raising=False)
-    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
-    monkeypatch.setattr(
-        orchestrator,
-        "SITES",
-        [{"name": "site1", "url": "https://example.com/"}],
-    )
+    _configure_test_site(tmp_path, monkeypatch)
     monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
     monkeypatch.setattr(orchestrator, "classify_site", fail_classify_site)
 
@@ -64,12 +68,7 @@ def test_smoke_mode_preserves_page_and_chunk_limits(tmp_path, monkeypatch) -> No
         }
 
     monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "test-secret")
-    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
-    monkeypatch.setattr(
-        orchestrator,
-        "SITES",
-        [{"name": "site1", "url": "https://example.com/"}],
-    )
+    _configure_test_site(tmp_path, monkeypatch)
     monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
     monkeypatch.setattr(orchestrator, "classify_site", fake_classify_site)
 
@@ -80,7 +79,7 @@ def test_smoke_mode_preserves_page_and_chunk_limits(tmp_path, monkeypatch) -> No
     assert calls["classifier"]["api_key"] == "test-secret"
 
 
-def test_classify_mode_uses_saved_evidence_without_scraping(
+def test_classify_mode_prompts_for_percentage_without_scraping(
     tmp_path, monkeypatch
 ) -> None:
     site_dir = tmp_path / "evidence" / "site1"
@@ -94,18 +93,13 @@ def test_classify_mode_uses_saved_evidence_without_scraping(
     def fake_classify_site(**kwargs):
         calls["classifier"] = kwargs
         return {
-            "evidence_is_partial": False,
-            "classification": "not_digital_twin",
-            "is_digital_twin": False,
+            "evidence_is_partial": True,
+            "provisional_classification": "not_digital_twin",
         }
 
     monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "test-secret")
-    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
-    monkeypatch.setattr(
-        orchestrator,
-        "SITES",
-        [{"name": "site1", "url": "https://example.com/"}],
-    )
+    monkeypatch.setattr("builtins.input", lambda _: "50")
+    _configure_test_site(tmp_path, monkeypatch)
     monkeypatch.setattr(orchestrator, "scrape_site", fail_scrape_site)
     monkeypatch.setattr(orchestrator, "classify_site", fake_classify_site)
 
@@ -113,3 +107,24 @@ def test_classify_mode_uses_saved_evidence_without_scraping(
 
     assert calls["classifier"]["evidence_dir"] == site_dir
     assert calls["classifier"]["max_chunks"] == 0
+    assert calls["classifier"]["evidence_percentage"] == 50
+
+
+def test_zero_percentage_cancels_without_jev_call(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    site_dir = tmp_path / "evidence" / "site1"
+    _write_evidence(site_dir)
+
+    def fail_classify_site(**kwargs):
+        del kwargs
+        raise AssertionError("zero percent must not call Jev")
+
+    monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "test-secret")
+    monkeypatch.setattr("builtins.input", lambda _: "0")
+    _configure_test_site(tmp_path, monkeypatch)
+    monkeypatch.setattr(orchestrator, "classify_site", fail_classify_site)
+
+    orchestrator.main(["--mode", "classify"])
+
+    assert "no Jev calls were made" in capsys.readouterr().out
