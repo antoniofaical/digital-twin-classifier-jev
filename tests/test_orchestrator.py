@@ -128,3 +128,61 @@ def test_zero_percentage_cancels_without_jev_call(
     orchestrator.main(["--mode", "classify"])
 
     assert "no Jev calls were made" in capsys.readouterr().out
+
+
+def test_translation_requires_confirmation_before_api_calls(
+    tmp_path, monkeypatch
+) -> None:
+    site_dir = tmp_path / "evidence" / "site1"
+    _write_evidence(site_dir)
+    calls: dict[str, Any] = {}
+
+    def fake_scrape_site(**kwargs):
+        calls["scraper"] = kwargs
+        return site_dir
+
+    def fake_classify_site(**kwargs):
+        calls["classifier"] = kwargs
+        return {
+            "evidence_is_partial": True,
+            "provisional_classification": "not_digital_twin",
+        }
+
+    monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "jev-secret")
+    monkeypatch.setenv(orchestrator.DEEPL_API_KEY_ENV, "deepl-secret:fx")
+    monkeypatch.setattr("builtins.input", lambda _: "y")
+    _configure_test_site(tmp_path, monkeypatch)
+    monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
+    monkeypatch.setattr(orchestrator, "classify_site", fake_classify_site)
+
+    orchestrator.main(["--mode", "smoke", "--translation", "auto"])
+
+    assert calls["classifier"]["translation_mode"] == "auto"
+    assert calls["classifier"]["translation_target"] == "EN"
+    assert calls["classifier"]["deepl_api_key"] == "deepl-secret:fx"
+
+
+def test_rejected_translation_confirmation_cancels_all_api_calls(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    site_dir = tmp_path / "evidence" / "site1"
+    _write_evidence(site_dir)
+
+    def fake_scrape_site(**kwargs):
+        del kwargs
+        return site_dir
+
+    def fail_classify_site(**kwargs):
+        del kwargs
+        raise AssertionError("rejected confirmation must not call APIs")
+
+    monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "jev-secret")
+    monkeypatch.setenv(orchestrator.DEEPL_API_KEY_ENV, "deepl-secret:fx")
+    monkeypatch.setattr("builtins.input", lambda _: "n")
+    _configure_test_site(tmp_path, monkeypatch)
+    monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
+    monkeypatch.setattr(orchestrator, "classify_site", fail_classify_site)
+
+    orchestrator.main(["--mode", "smoke", "--translation", "auto"])
+
+    assert "no API calls were made" in capsys.readouterr().out
