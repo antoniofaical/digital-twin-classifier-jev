@@ -21,8 +21,11 @@ JEV_API_KEY = os.getenv("TYPESAFE_API_KEY", "")
 RUN_SCRAPER = True
 RUN_CLASSIFIER = True
 
+# Keep this enabled for the first live run. Disable it only for a complete crawl.
+SMOKE_TEST = True
+
 SCRAPER_CONFIG = {
-    "max_pages": 0,  # 0 = no page-count limit
+    "max_pages": 5 if SMOKE_TEST else 0,
     "include_subdomains": False,
     "include_query_urls": False,
     "respect_robots": True,
@@ -32,6 +35,7 @@ SCRAPER_CONFIG = {
 CLASSIFIER_CONFIG = {
     "model": "jev-latest",
     "chunk_chars": 20_000,
+    "max_chunks": 1 if SMOKE_TEST else 0,
     "positive_threshold": 0.70,
     "negative_threshold": 0.30,
     "request_timeout": 60,
@@ -45,6 +49,9 @@ def main() -> None:
         )
 
     EVIDENCE_ROOT.mkdir(parents=True, exist_ok=True)
+
+    if SMOKE_TEST:
+        print("SMOKE TEST: at most 5 pages and 1 Jev request per site.")
 
     for site in SITES:
         name = site["name"]
@@ -68,10 +75,17 @@ def main() -> None:
                 api_key=JEV_API_KEY,
                 **CLASSIFIER_CONFIG,
             )
-            print(
-                f"[{name}] {result['classification']} "
-                f"(is_digital_twin={result['is_digital_twin']})"
-            )
+            if result["evidence_is_partial"]:
+                print(
+                    f"[{name}] partial smoke-test result: "
+                    f"{result['provisional_classification']} "
+                    "(not a final classification)"
+                )
+            else:
+                print(
+                    f"[{name}] {result['classification']} "
+                    f"(is_digital_twin={result['is_digital_twin']})"
+                )
 
 
 if __name__ == "__main__":
