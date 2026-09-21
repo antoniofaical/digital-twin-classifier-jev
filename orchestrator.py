@@ -22,7 +22,15 @@ from classifier import (
     is_english_hint,
     select_evidence_chunks,
 )
-from scraper import evidence_directory_name, scrape_site
+from scraper import (
+    DEFAULT_MAX_CRAWL_SECONDS,
+    DEFAULT_MAX_PAGES,
+    DEFAULT_MAX_QUEUE_SIZE,
+    DEFAULT_MAX_REQUESTS,
+    DEFAULT_MAX_SITEMAPS,
+    evidence_directory_name,
+    scrape_site,
+)
 
 SITES = [
     {"name": "madidt", "url": "https://madidt.com/"},
@@ -52,6 +60,10 @@ SCRAPER_CONFIG = {
     "include_query_urls": False,
     "respect_robots": True,
     "request_timeout": 20,
+    "max_requests": DEFAULT_MAX_REQUESTS,
+    "max_queue_size": DEFAULT_MAX_QUEUE_SIZE,
+    "max_crawl_seconds": DEFAULT_MAX_CRAWL_SECONDS,
+    "max_sitemaps": DEFAULT_MAX_SITEMAPS,
 }
 
 CLASSIFIER_CONFIG = {
@@ -230,11 +242,23 @@ def non_negative_number(value: str) -> float:
         number = float(value.replace(",", "."))
     except ValueError as exc:
         raise argparse.ArgumentTypeError(
-            "crawl max age must be zero or a positive number"
+            "value must be zero or a positive number"
+        ) from exc
+    if number < 0:
+        raise argparse.ArgumentTypeError("value must be zero or a positive number")
+    return number
+
+
+def non_negative_integer(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "crawl limit must be zero or a positive integer"
         ) from exc
     if number < 0:
         raise argparse.ArgumentTypeError(
-            "crawl max age must be zero or a positive number"
+            "crawl limit must be zero or a positive integer"
         )
     return number
 
@@ -307,6 +331,48 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--force-crawl",
         action="store_true",
         help="ignore a recent crawl and fetch every selected site again",
+    )
+    parser.add_argument(
+        "--max-pages-per-site",
+        type=non_negative_integer,
+        default=DEFAULT_MAX_PAGES,
+        help=f"maximum unique pages saved per site, default: {DEFAULT_MAX_PAGES}; 0 disables",
+    )
+    parser.add_argument(
+        "--max-requests-per-site",
+        type=non_negative_integer,
+        default=DEFAULT_MAX_REQUESTS,
+        help=(
+            "maximum page requests attempted per site, default: "
+            f"{DEFAULT_MAX_REQUESTS}; 0 disables"
+        ),
+    )
+    parser.add_argument(
+        "--max-queue-size",
+        type=non_negative_integer,
+        default=DEFAULT_MAX_QUEUE_SIZE,
+        help=(
+            "maximum pending URLs retained per site, default: "
+            f"{DEFAULT_MAX_QUEUE_SIZE}; 0 disables"
+        ),
+    )
+    parser.add_argument(
+        "--max-crawl-seconds",
+        type=non_negative_number,
+        default=DEFAULT_MAX_CRAWL_SECONDS,
+        help=(
+            "maximum crawl duration per site in seconds, default: "
+            f"{DEFAULT_MAX_CRAWL_SECONDS:g}; 0 disables"
+        ),
+    )
+    parser.add_argument(
+        "--max-sitemaps-per-site",
+        type=non_negative_integer,
+        default=DEFAULT_MAX_SITEMAPS,
+        help=(
+            "maximum sitemap documents fetched per site, default: "
+            f"{DEFAULT_MAX_SITEMAPS}; 0 disables"
+        ),
     )
     parser.add_argument(
         "-v",
@@ -422,7 +488,38 @@ def crawl_signature(
         "include_query_urls": bool(scraper_config["include_query_urls"]),
         "respect_robots": bool(scraper_config["respect_robots"]),
         "max_pages": int(scraper_config["max_pages"]),
+        "max_requests": int(scraper_config["max_requests"]),
+        "max_queue_size": int(scraper_config["max_queue_size"]),
+        "max_crawl_seconds": float(scraper_config["max_crawl_seconds"]),
+        "max_sitemaps": int(scraper_config["max_sitemaps"]),
     }
+
+
+def crawl_signatures_compatible(
+    stored: object,
+    current: dict[str, Any],
+    manifest: dict[str, Any],
+) -> bool:
+    if stored == current:
+        return True
+    if not isinstance(stored, dict):
+        return False
+    legacy_keys = {
+        "root_url",
+        "include_subdomains",
+        "include_query_urls",
+        "respect_robots",
+        "max_pages",
+    }
+    if set(stored) != legacy_keys:
+        return False
+    if any(stored[key] != current[key] for key in legacy_keys - {"max_pages"}):
+        return False
+    return (
+        int(stored["max_pages"]) == 0
+        and not manifest.get("stopped_by_page_limit")
+        and not manifest.get("crawl_limited")
+    )
 
 
 def recent_crawl(
@@ -444,6 +541,7 @@ def recent_crawl(
         return False, None
     try:
         state = json.loads(state_file.read_text(encoding="utf-8"))
+        manifest = json.loads((site_dir / "manifest.json").read_text(encoding="utf-8"))
         completed_at = datetime.fromisoformat(str(state["completed_at"]))
     except (OSError, ValueError, TypeError, KeyError):
         return False, None
@@ -455,7 +553,11 @@ def recent_crawl(
         return False, None
     if state.get("site_name") != site["name"]:
         return False, None
-    if state.get("crawl_signature") != crawl_signature(site, scraper_config):
+    if not crawl_signatures_compatible(
+        state.get("crawl_signature"),
+        crawl_signature(site, scraper_config),
+        manifest,
+    ):
         return False, None
 
     current_time = now or datetime.now(timezone.utc)
@@ -493,12 +595,15 @@ def write_crawl_state(
         raise FileNotFoundError(
             f"Cannot mark crawl complete without evidence and manifest in {site_dir}"
         )
+    manifest = json.loads((site_dir / "manifest.json").read_text(encoding="utf-8"))
     state = {
         "schema_version": CRAWL_STATE_VERSION,
         "status": "completed",
         "site_name": site["name"],
         "completed_at": (completed_at or datetime.now(timezone.utc)).isoformat(),
         "crawl_signature": crawl_signature(site, scraper_config),
+        "crawl_limited": bool(manifest.get("crawl_limited")),
+        "crawl_limit_reasons": list(manifest.get("crawl_limit_reasons", [])),
     }
     temporary = site_dir / ".crawl_state.json.tmp"
     temporary.write_text(
@@ -694,7 +799,11 @@ def main(argv: list[str] | None = None) -> None:
 
     scraper_config = {
         **SCRAPER_CONFIG,
-        "max_pages": SMOKE_MAX_PAGES if smoke_test else 0,
+        "max_pages": (SMOKE_MAX_PAGES if smoke_test else args.max_pages_per_site),
+        "max_requests": args.max_requests_per_site,
+        "max_queue_size": args.max_queue_size,
+        "max_crawl_seconds": args.max_crawl_seconds,
+        "max_sitemaps": args.max_sitemaps_per_site,
         "verbose": args.verbose,
     }
     base_classifier_config = {
@@ -722,6 +831,14 @@ def main(argv: list[str] | None = None) -> None:
         )
     elif mode == "crawl":
         print("FULL CRAWL: no Jev or DeepL API calls will be made.")
+        print(
+            "CRAWL LIMITS PER SITE: "
+            f"pages={args.max_pages_per_site}, "
+            f"requests={args.max_requests_per_site}, "
+            f"queue={args.max_queue_size}, "
+            f"seconds={args.max_crawl_seconds:g}, "
+            f"sitemaps={args.max_sitemaps_per_site} (0 disables a limit)."
+        )
         if args.force_crawl:
             print("CRAWL CACHE: bypassed by --force-crawl.")
         else:

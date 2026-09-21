@@ -363,10 +363,21 @@ def classify_site(
     chunks_were_limited = len(chunks) < total_chunks
 
     crawl_was_limited = False
+    crawl_limit_reasons: list[str] = []
     manifest_file = evidence_dir / "manifest.json"
     if manifest_file.exists():
         manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
-        crawl_was_limited = bool(manifest.get("stopped_by_page_limit"))
+        crawl_was_limited = bool(
+            manifest.get(
+                "crawl_limited",
+                manifest.get("stopped_by_page_limit"),
+            )
+        )
+        raw_reasons = manifest.get("crawl_limit_reasons", [])
+        if isinstance(raw_reasons, list):
+            crawl_limit_reasons = [str(reason) for reason in raw_reasons]
+        if not crawl_limit_reasons and manifest.get("stopped_by_page_limit"):
+            crawl_limit_reasons = ["page_limit"]
 
     evidence_is_partial = chunks_were_limited or crawl_was_limited
     aggregate = {name: 0.0 for name in QUESTIONS}
@@ -470,6 +481,7 @@ def classify_site(
         "requires_human_review": requires_review,
         "evidence_is_partial": evidence_is_partial,
         "crawl_was_limited": crawl_was_limited,
+        "crawl_limit_reasons": crawl_limit_reasons,
         "chunks_were_limited": chunks_were_limited,
         "evidence_percentage_requested": evidence_percentage,
         "sampling_strategy": sampling_strategy,
