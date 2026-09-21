@@ -47,7 +47,7 @@ def test_crawl_mode_never_requires_key_or_calls_classifier(
 
     assert calls["scraper"]["max_pages"] == 0
     output = capsys.readouterr().out
-    assert "no Jev API calls will be made" in output
+    assert "no Jev or DeepL API calls will be made" in output
     assert "1 Jev request(s) would be required" in output
 
 
@@ -127,7 +127,7 @@ def test_zero_percentage_cancels_without_jev_call(
 
     orchestrator.main(["--mode", "classify"])
 
-    assert "no Jev calls were made" in capsys.readouterr().out
+    assert "no API calls were made" in capsys.readouterr().out
 
 
 def test_translation_requires_confirmation_before_api_calls(
