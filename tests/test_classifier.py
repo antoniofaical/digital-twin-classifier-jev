@@ -109,7 +109,7 @@ def test_classify_site_uses_passed_key_and_never_calls_live_api(
     assert "test-secret" not in (site_dir / "classification.json").read_text()
 
 
-def test_classify_site_limits_smoke_test_and_marks_result_partial(
+def test_classify_site_balances_smoke_test_across_saved_pages(
     tmp_path, monkeypatch
 ) -> None:
     probabilities = {name: 0.95 for name in classifier.QUESTIONS}
@@ -118,8 +118,12 @@ def test_classify_site_limits_smoke_test_and_marks_result_partial(
 
     site_dir = tmp_path / "evidence" / "site1"
     site_dir.mkdir(parents=True)
+    records = [
+        {"url": "https://example.com/privacy", "text": "A" * 12},
+        {"url": "https://example.com/product", "text": "B" * 8},
+    ]
     (site_dir / "evidence.jsonl").write_text(
-        json.dumps({"url": "https://example.com/", "text": "A" * 12}) + "\n",
+        "".join(json.dumps(record) + "\n" for record in records),
         encoding="utf-8",
     )
 
@@ -131,11 +135,18 @@ def test_classify_site_limits_smoke_test_and_marks_result_partial(
         max_chunks=1,
     )
 
+    submitted_pages = calls[0]["json"]["state"]["pages"]
     assert len(calls) == 1
+    assert {page["url"] for page in submitted_pages} == {
+        "https://example.com/privacy",
+        "https://example.com/product",
+    }
+    assert sum(len(page["text"]) for page in submitted_pages) == 10
     assert result["classification"] == "partial_evidence_smoke_test"
     assert result["provisional_classification"] == "verified_digital_twin"
     assert result["is_digital_twin"] is None
     assert result["requires_human_review"]
     assert result["evidence_is_partial"]
+    assert result["sampling_strategy"] == "balanced_across_pages"
     assert result["evidence_chunks_available"] == 2
     assert result["evidence_chunks_sent"] == 1
