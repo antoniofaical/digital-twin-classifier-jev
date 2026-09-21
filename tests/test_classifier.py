@@ -92,6 +92,7 @@ def test_classify_site_uses_passed_key_and_never_calls_live_api(
         "enabling_technology": 0.99,
     }
     calls: list[dict[str, Any]] = []
+    progress_events: list[str] = []
     _mock_jev(monkeypatch, probabilities, calls)
 
     site_dir = tmp_path / "evidence" / "site1"
@@ -105,12 +106,14 @@ def test_classify_site_uses_passed_key_and_never_calls_live_api(
         site_name="site1",
         evidence_dir=site_dir,
         api_key="test-secret",
+        progress_callback=progress_events.append,
     )
 
     assert result["classification"] == "verified_digital_twin"
     assert not result["evidence_is_partial"]
     assert len(calls) == 1
     assert calls[0]["headers"]["Authorization"] == "Bearer test-secret"
+    assert progress_events == ["jev"]
     assert "test-secret" not in (site_dir / "classification.json").read_text()
 
 
@@ -228,6 +231,7 @@ def test_auto_translation_sends_non_english_text_to_deepl(
 ) -> None:
     probabilities = {name: 0.10 for name in classifier.QUESTIONS}
     calls: list[tuple[str, dict[str, Any]]] = []
+    progress_events: list[str] = []
 
     class FakeResponse:
         def __init__(self, payload: dict[str, Any]) -> None:
@@ -284,6 +288,7 @@ def test_auto_translation_sends_non_english_text_to_deepl(
         translation_mode="auto",
         translation_target="EN",
         deepl_api_key="deepl-secret:fx",
+        progress_callback=progress_events.append,
     )
 
     assert [url for url, _ in calls] == [
@@ -294,6 +299,7 @@ def test_auto_translation_sends_non_english_text_to_deepl(
     assert jev_pages[0]["text"] == "Digital twin evidence"
     assert result["translation"]["deepl_requests"] == 1
     assert result["translation"]["billed_characters"] == 24
+    assert progress_events == ["deepl", "jev"]
     translation = json.loads(
         (site_dir / "translations.jsonl").read_text().splitlines()[0]
     )

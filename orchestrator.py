@@ -28,6 +28,7 @@ from scraper import (
     DEFAULT_MAX_QUEUE_SIZE,
     DEFAULT_MAX_REQUESTS,
     DEFAULT_MAX_SITEMAPS,
+    canonicalize,
     evidence_directory_name,
     scrape_site,
 )
@@ -76,13 +77,30 @@ CLASSIFIER_CONFIG = {
 
 T = TypeVar("T")
 
+ANSI_COLORS = {
+    "blue": "\033[34m",
+    "cyan": "\033[36m",
+    "green": "\033[32m",
+    "magenta": "\033[35m",
+    "yellow": "\033[33m",
+}
+ANSI_RESET = "\033[0m"
+
 
 class BulkExecutionError(RuntimeError):
     """Raised after all possible sites finish when one or more sites failed."""
 
 
+@dataclass
+class ProgressStage:
+    label: str
+    total: int
+    color: str
+    completed: int = 0
+
+
 class TerminalProgress:
-    """Render thread-safe bulk progress on one persistent terminal line."""
+    """Render thread-safe progress stages on persistent terminal lines."""
 
     def __init__(
         self,
@@ -90,10 +108,13 @@ class TerminalProgress:
         *,
         enabled: bool,
         stream: TextIO | None = None,
+        label: str = "Sites",
+        color: str = "blue",
     ) -> None:
         self.total = total
         self.enabled = enabled
         self.stream = stream or sys.stdout
+        self.color_enabled = enabled and "NO_COLOR" not in os.environ
         self.successful = 0
         self.failed = 0
         self.cancelled = 0
@@ -101,7 +122,10 @@ class TerminalProgress:
         self.active = 0
         self._terminal_sites: set[str] = set()
         self._started_at = time.monotonic()
-        self._last_width = 0
+        self._stages = {
+            "sites": ProgressStage(label=label, total=total, color=color),
+        }
+        self._last_line_count = 0
         self._running = False
         self._lock = threading.RLock()
 
@@ -115,6 +139,29 @@ class TerminalProgress:
                 return
             self._running = True
             self._started_at = time.monotonic()
+            self._draw_locked()
+
+    def add_stage(self, key: str, *, label: str, total: int, color: str) -> None:
+        if total < 0:
+            raise ValueError("progress total must be zero or positive")
+        with self._lock:
+            if key in self._stages:
+                raise ValueError(f"progress stage already exists: {key}")
+            self._stages[key] = ProgressStage(
+                label=label,
+                total=total,
+                color=color,
+            )
+            self._draw_locked()
+
+    def advance_stage(self, key: str, amount: int = 1) -> None:
+        if amount < 0:
+            raise ValueError("progress amount must be zero or positive")
+        with self._lock:
+            stage = self._stages[key]
+            stage.completed += amount
+            if stage.completed > stage.total:
+                raise ValueError(f"progress stage exceeds total: {key}")
             self._draw_locked()
 
     def stop(self) -> None:
@@ -132,6 +179,7 @@ class TerminalProgress:
         with self._lock:
             if self.enabled and self._running:
                 self._clear_locked()
+                self._last_line_count = 0
                 self.stream.write(f"{message}\n")
                 self._draw_locked()
                 self.stream.flush()
@@ -163,46 +211,66 @@ class TerminalProgress:
             else:
                 raise ValueError(f"unknown terminal progress status: {status}")
             self._terminal_sites.add(site_name)
+            self._stages["sites"].completed = self.completed
             if self.completed > self.total:
                 raise ValueError("completed site progress exceeds selected sites")
             self._draw_locked()
 
-    def _line(self) -> str:
+    def _line(self, key: str, stage: ProgressStage) -> str:
         percentage = (
-            100 if self.total == 0 else round(100 * self.completed / self.total)
+            100 if stage.total == 0 else round(100 * stage.completed / stage.total)
         )
         elapsed = max(0, int(time.monotonic() - self._started_at))
         hours, remainder = divmod(elapsed, 3600)
         minutes, seconds = divmod(remainder, 60)
-        details = (
-            f" {self.completed}/{self.total} {percentage:3d}% "
-            f"completed={self.successful} reused={self.reused} "
-            f"failed={self.failed}"
-            f"{' cancelled=' + str(self.cancelled) if self.cancelled else ''} "
-            f"active={self.active} "
-            f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        )
+        details = f" {stage.completed}/{stage.total} {percentage:3d}%"
+        if key == "sites":
+            details += (
+                f" completed={self.successful} reused={self.reused} "
+                f"failed={self.failed}"
+                f"{' cancelled=' + str(self.cancelled) if self.cancelled else ''} "
+                f"active={self.active} "
+                f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            )
         columns = shutil.get_terminal_size(fallback=(100, 24)).columns
-        bar_width = min(40, max(0, columns - len(details) - len("Sites  []") - 1))
+        label = stage.label
+        if self.color_enabled:
+            color = ANSI_COLORS.get(stage.color, "")
+            label = f"{color}{label}{ANSI_RESET}"
+        prefix = f"{label}  "
+        bar_width = min(
+            40,
+            max(0, columns - len(details) - len(stage.label) - len("  []") - 1),
+        )
         if bar_width < 8:
-            return f"Sites{details}"
-        filled = min(bar_width, round(bar_width * self.completed / max(1, self.total)))
-        bar = "█" * filled + "-" * (bar_width - filled)
-        return f"Sites  [{bar}]{details}"
+            return f"{label}{details}"
+        filled = min(
+            bar_width,
+            round(bar_width * stage.completed / max(1, stage.total)),
+        )
+        filled_bar = "█" * filled
+        if self.color_enabled and filled_bar:
+            color = ANSI_COLORS.get(stage.color, "")
+            filled_bar = f"{color}{filled_bar}{ANSI_RESET}"
+        bar = filled_bar + "-" * (bar_width - filled)
+        return f"{prefix}[{bar}]{details}"
 
     def _clear_locked(self) -> None:
-        if not self.enabled:
+        if not self.enabled or not self._last_line_count:
             return
-        self.stream.write("\r" + " " * self._last_width + "\r")
+        for index in range(self._last_line_count):
+            self.stream.write("\r\033[2K")
+            if index < self._last_line_count - 1:
+                self.stream.write("\033[1A")
 
     def _draw_locked(self) -> None:
         if not self.enabled or not self._running:
             return
-        line = self._line()
-        padding = " " * max(0, self._last_width - len(line))
-        self.stream.write(f"\r{line}{padding}")
+        self._clear_locked()
+        lines = [self._line(key, stage) for key, stage in self._stages.items()]
+        self.stream.write("\n".join(lines))
         self.stream.flush()
-        self._last_width = len(line)
+        self._last_line_count = len(lines)
 
 
 @dataclass(frozen=True)
@@ -214,6 +282,12 @@ class ClassificationPlan:
     chunks_selected: int
     translation_requests: int
     translation_characters: int
+
+
+@dataclass(frozen=True)
+class CrawlRecoveryResult:
+    status: str
+    detail: str
 
 
 def positive_integer(value: str) -> int:
@@ -333,6 +407,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="ignore a recent crawl and fetch every selected site again",
     )
     parser.add_argument(
+        "--recover-existing-crawls",
+        action="store_true",
+        help=(
+            "create crawl state for complete local evidence and manifests without "
+            "network or API calls; only applies to crawl mode"
+        ),
+    )
+    parser.add_argument(
         "--max-pages-per-site",
         type=non_negative_integer,
         default=DEFAULT_MAX_PAGES,
@@ -384,7 +466,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--no-progress",
         action="store_true",
-        help="disable the persistent bulk progress bar",
+        help="disable persistent progress bars",
     )
     parser.add_argument(
         "--percentage",
@@ -402,6 +484,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--percentage can only be used with --mode classify")
     if args.force_crawl and args.mode != "crawl":
         parser.error("--force-crawl can only be used with --mode crawl")
+    if args.recover_existing_crawls and args.mode != "crawl":
+        parser.error("--recover-existing-crawls can only be used with --mode crawl")
+    if args.recover_existing_crawls and args.force_crawl:
+        parser.error("--recover-existing-crawls cannot be combined with --force-crawl")
     return args
 
 
@@ -611,6 +697,77 @@ def write_crawl_state(
         encoding="utf-8",
     )
     temporary.replace(site_dir / CRAWL_STATE_FILENAME)
+
+
+def recover_existing_crawl(
+    *,
+    site: dict[str, str],
+    site_dir: Path,
+    scraper_config: dict[str, Any],
+    chunk_chars: int,
+) -> CrawlRecoveryResult:
+    """Validate a fully persisted crawl and recreate only its cache state."""
+    evidence_file = site_dir / "evidence.jsonl"
+    manifest_file = site_dir / "manifest.json"
+    missing = [
+        path.name for path in (evidence_file, manifest_file) if not path.is_file()
+    ]
+    if missing:
+        return CrawlRecoveryResult("skipped", f"missing {', '.join(missing)}")
+
+    try:
+        manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError) as exc:
+        return CrawlRecoveryResult("skipped", f"invalid manifest: {exc}")
+    if not isinstance(manifest, dict):
+        return CrawlRecoveryResult("skipped", "manifest must be a JSON object")
+    if manifest.get("site_name") != site["name"]:
+        return CrawlRecoveryResult("skipped", "manifest site name does not match")
+
+    configured_root = str(site["url"])
+    if not configured_root.lower().startswith(("http://", "https://")):
+        configured_root = "https://" + configured_root
+    expected_root = canonicalize(
+        configured_root,
+        keep_query=bool(scraper_config["include_query_urls"]),
+    )
+    manifest_root = canonicalize(
+        str(manifest.get("root_url", "")),
+        keep_query=bool(scraper_config["include_query_urls"]),
+    )
+    if not manifest_root or manifest_root != expected_root:
+        return CrawlRecoveryResult("skipped", "manifest root URL does not match")
+
+    try:
+        completed_at = datetime.fromisoformat(str(manifest["created_at"]))
+        pages_saved = int(manifest["pages_saved"])
+        records_saved = sum(
+            bool(line.strip())
+            for line in evidence_file.read_text(encoding="utf-8").splitlines()
+        )
+        chunks = count_chunks(evidence_file, chunk_chars)
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+        return CrawlRecoveryResult("skipped", f"invalid persisted evidence: {exc}")
+    if completed_at.tzinfo is None:
+        return CrawlRecoveryResult("skipped", "manifest timestamp has no timezone")
+    if pages_saved <= 0 or records_saved != pages_saved:
+        return CrawlRecoveryResult(
+            "skipped",
+            f"page count mismatch: manifest={pages_saved}, evidence={records_saved}",
+        )
+    if chunks <= 0:
+        return CrawlRecoveryResult("skipped", "no textual evidence chunks")
+
+    write_crawl_state(
+        site=site,
+        site_dir=site_dir,
+        scraper_config=scraper_config,
+        completed_at=completed_at,
+    )
+    return CrawlRecoveryResult(
+        "recovered",
+        f"pages={pages_saved}, chunks={chunks}, completed_at={completed_at.isoformat()}",
+    )
 
 
 def prompt_evidence_percentage(chunk_count: int, site_count: int = 1) -> float:
@@ -824,6 +981,56 @@ def main(argv: list[str] | None = None) -> None:
 
     EVIDENCE_ROOT.mkdir(parents=True, exist_ok=True)
 
+    if args.recover_existing_crawls:
+        print("CRAWL RECOVERY: no website, Jev, or DeepL calls will be made.")
+        recovery_progress = TerminalProgress(
+            len(sites),
+            enabled=terminal_progress_enabled(disabled=args.no_progress),
+            label="Recovering",
+            color="blue",
+        )
+        recovery_progress.start()
+
+        def recover(site: dict[str, str]) -> CrawlRecoveryResult:
+            return recover_existing_crawl(
+                site=site,
+                site_dir=site_dirs[site["name"]],
+                scraper_config=scraper_config,
+                chunk_chars=base_classifier_config["chunk_chars"],
+            )
+
+        recoveries, recovery_errors = run_site_jobs(
+            sites,
+            args.workers,
+            recover,
+            progress=recovery_progress,
+            successes_are_terminal=True,
+        )
+        recovery_progress.stop()
+        recovered_count = 0
+        skipped_count = 0
+        for site in sites:
+            result = recoveries.get(site["name"])
+            if result is None:
+                continue
+            if result.status == "recovered":
+                recovered_count += 1
+            else:
+                skipped_count += 1
+            print(f"[{site['name']}] {result.status}: {result.detail}")
+        print(
+            "RECOVERY SUMMARY: "
+            f"selected={len(sites)}, recovered={recovered_count}, "
+            f"skipped={skipped_count}, failed={len(recovery_errors)}"
+        )
+        for name, error in recovery_errors.items():
+            print(f"[{name}] failed: {error}")
+        if recovery_errors:
+            raise BulkExecutionError(
+                f"{len(recovery_errors)} site(s) failed during crawl recovery"
+            )
+        return
+
     if smoke_test:
         print(
             f"SMOKE TEST: at most {SMOKE_MAX_PAGES} pages and "
@@ -851,10 +1058,12 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Selected {len(sites)} site(s); using up to {args.workers} worker(s).")
 
     progress: TerminalProgress | None = None
-    if mode == "crawl":
+    if run_scraper:
         progress = TerminalProgress(
             len(sites),
             enabled=terminal_progress_enabled(disabled=args.no_progress),
+            label="Scraping",
+            color="cyan",
         )
         progress.start()
 
@@ -886,73 +1095,57 @@ def main(argv: list[str] | None = None) -> None:
             else:
                 sites_to_scrape.append(site)
 
-    if run_scraper:
-
-        def scrape(site: dict[str, str]) -> Path:
-            removed = clean_generated_artifacts(site_dirs[site["name"]])
-            if removed:
-                reason = "stale" if mode == "crawl" else "previous"
-                emit(
-                    f"[{site['name']}] removed {reason} generated artifacts: "
-                    f"{', '.join(removed)}"
-                )
-            emit(f"[{site['name']}] scraping {site['url']}")
-            return scrape_site(
-                site_name=site["name"],
-                root_url=site["url"],
-                evidence_root=EVIDENCE_ROOT,
-                log_callback=emit,
-                **scraper_config,
+    def scrape(site: dict[str, str]) -> Path:
+        removed = clean_generated_artifacts(site_dirs[site["name"]])
+        if removed:
+            reason = "stale" if mode == "crawl" else "previous"
+            emit(
+                f"[{site['name']}] removed {reason} generated artifacts: "
+                f"{', '.join(removed)}"
             )
-
-        scraped, scrape_errors = run_site_jobs(
-            sites_to_scrape,
-            args.workers,
-            scrape,
-            progress=progress,
+        emit(f"[{site['name']}] scraping {site['url']}")
+        return scrape_site(
+            site_name=site["name"],
+            root_url=site["url"],
+            evidence_root=EVIDENCE_ROOT,
+            log_callback=emit,
+            **scraper_config,
         )
-        site_dirs.update(scraped)
-        errors.update(scrape_errors)
 
-    ready_sites = [site for site in sites if site["name"] not in errors]
     if mode == "crawl":
 
-        def crawl_result(site: dict[str, str]) -> int:
+        def complete_crawl(site: dict[str, str]) -> int:
+            if site["name"] not in reused_names:
+                scrape(site)
+            evidence_file = site_dirs[site["name"]] / "evidence.jsonl"
             chunks = count_chunks(
-                site_dirs[site["name"]] / "evidence.jsonl",
+                evidence_file,
                 base_classifier_config["chunk_chars"],
             )
             if chunks == 0:
-                raise ValueError(
-                    f"No textual evidence found in "
-                    f"{site_dirs[site['name']] / 'evidence.jsonl'}"
-                )
+                raise ValueError(f"No textual evidence found in {evidence_file}")
             if site["name"] not in reused_names:
                 write_crawl_state(
                     site=site,
                     site_dir=site_dirs[site["name"]],
                     scraper_config=scraper_config,
                 )
+            emit(
+                f"[{site['name']}] crawl complete: {chunks} Jev request(s) "
+                "would be required for full classification."
+            )
             return chunks
 
-        chunk_counts, count_errors = run_site_jobs(
-            ready_sites,
+        chunk_counts, errors = run_site_jobs(
+            sites,
             args.workers,
-            crawl_result,
+            complete_crawl,
             progress=progress,
             successes_are_terminal=True,
             reused_names=reused_names,
         )
-        errors.update(count_errors)
         if progress is not None:
             progress.stop()
-        for site in sites:
-            if site["name"] in chunk_counts:
-                print(
-                    f"[{site['name']}] crawl complete: "
-                    f"{chunk_counts[site['name']]} Jev request(s) would be "
-                    "required for full classification."
-                )
         print_bulk_summary(
             selected=len(sites),
             completed=len(chunk_counts),
@@ -962,6 +1155,21 @@ def main(argv: list[str] | None = None) -> None:
         if errors:
             raise BulkExecutionError(f"{len(errors)} site(s) failed during bulk crawl")
         return
+
+    if run_scraper:
+        scraped, scrape_errors = run_site_jobs(
+            sites_to_scrape,
+            args.workers,
+            scrape,
+            progress=progress,
+            successes_are_terminal=True,
+        )
+        site_dirs.update(scraped)
+        errors.update(scrape_errors)
+        if progress is not None:
+            progress.stop()
+
+    ready_sites = [site for site in sites if site["name"] not in errors]
 
     percentage = args.percentage
     if mode == "classify":
@@ -1055,6 +1263,21 @@ def main(argv: list[str] | None = None) -> None:
     progress = TerminalProgress(
         len(sites),
         enabled=terminal_progress_enabled(disabled=args.no_progress),
+        label="Classifying",
+        color="yellow",
+    )
+    if total_deepl_requests:
+        progress.add_stage(
+            "deepl",
+            label="DeepL",
+            total=total_deepl_requests,
+            color="magenta",
+        )
+    progress.add_stage(
+        "jev",
+        label="Jev",
+        total=total_jev_requests,
+        color="green",
     )
     progress.start()
     for failed_name in errors:
@@ -1067,6 +1290,7 @@ def main(argv: list[str] | None = None) -> None:
             site_name=site["name"],
             evidence_dir=plan.site_dir,
             api_key=api_key,
+            progress_callback=progress.advance_stage,
             **plan.classifier_config,
         )
 
