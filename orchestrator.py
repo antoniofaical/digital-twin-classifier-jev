@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from math import ceil
 from pathlib import Path
 
 from classifier import classify_site, evidence_chunks
@@ -49,10 +50,31 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=(
             "smoke: bounded crawl plus one Jev call; "
             "crawl: full crawl with no Jev calls; "
-            "classify: classify all previously saved evidence"
+            "classify: choose a percentage of previously saved evidence"
         ),
     )
     return parser.parse_args(argv)
+
+
+def prompt_evidence_percentage(chunk_count: int) -> float:
+    while True:
+        raw = input(
+            f"{chunk_count} chunks of evidence generated. "
+            "How much do you want to include (%)? "
+        )
+        normalized = raw.strip().removesuffix("%").strip().replace(",", ".")
+        try:
+            percentage = float(normalized)
+        except ValueError:
+            print("Enter a number from 0 to 100.")
+            continue
+        if 0 <= percentage <= 100:
+            return percentage
+        print("Enter a number from 0 to 100.")
+
+
+def count_chunks(evidence_file: Path, chunk_chars: int) -> int:
+    return sum(1 for _ in evidence_chunks(evidence_file, chunk_chars))
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -86,7 +108,7 @@ def main(argv: list[str] | None = None) -> None:
     elif mode == "crawl":
         print("FULL CRAWL: no Jev API calls will be made.")
     else:
-        print("FULL CLASSIFICATION: using all previously saved evidence.")
+        print("CLASSIFICATION: no Jev calls occur before evidence selection.")
 
     for site in SITES:
         name = site["name"]
@@ -102,19 +124,39 @@ def main(argv: list[str] | None = None) -> None:
                 **scraper_config,
             )
 
+        evidence_file = site_dir / "evidence.jsonl"
+
         if mode == "crawl":
-            evidence_file = site_dir / "evidence.jsonl"
-            chunk_count = sum(
-                1
-                for _ in evidence_chunks(
-                    evidence_file,
-                    classifier_config["chunk_chars"],
-                )
+            chunk_count = count_chunks(
+                evidence_file,
+                classifier_config["chunk_chars"],
             )
             print(
                 f"[{name}] crawl complete: {chunk_count} Jev request(s) "
                 "would be required for full classification."
             )
+
+        if mode == "classify":
+            chunk_count = count_chunks(
+                evidence_file,
+                classifier_config["chunk_chars"],
+            )
+            percentage = prompt_evidence_percentage(chunk_count)
+            if percentage == 0:
+                print(f"[{name}] classification cancelled; no Jev calls were made.")
+                continue
+            selected_count = min(
+                chunk_count,
+                ceil(chunk_count * percentage / 100),
+            )
+            print(
+                f"[{name}] {selected_count} of {chunk_count} chunks selected; "
+                f"{selected_count} Jev request(s) will be made."
+            )
+            classifier_config = {
+                **classifier_config,
+                "evidence_percentage": percentage,
+            }
 
         if run_classifier:
             print(f"[{name}] classifying saved evidence")
@@ -125,8 +167,13 @@ def main(argv: list[str] | None = None) -> None:
                 **classifier_config,
             )
             if result["evidence_is_partial"]:
+                label = (
+                    "partial smoke-test result"
+                    if smoke_test
+                    else "partial classification"
+                )
                 print(
-                    f"[{name}] partial smoke-test result: "
+                    f"[{name}] {label}: "
                     f"{result['provisional_classification']} "
                     "(not a final classification)"
                 )
