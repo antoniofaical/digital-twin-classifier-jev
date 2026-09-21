@@ -114,21 +114,35 @@ def classify_site(
     api_key: str,
     model: str = "jev-latest",
     chunk_chars: int = 20_000,
+    max_chunks: int = 0,
     positive_threshold: float = 0.70,
     negative_threshold: float = 0.30,
     request_timeout: int = 60,
 ) -> dict[str, Any]:
-    """Send every saved evidence chunk to Jev and save the final result."""
+    """Send selected evidence chunks to Jev and save the result."""
     if not api_key:
         raise ValueError("A Jev API key must be passed by orchestrator.py")
+    if max_chunks < 0:
+        raise ValueError("max_chunks must be zero or a positive integer")
+
     evidence_file = evidence_dir / "evidence.jsonl"
     if not evidence_file.exists():
         raise FileNotFoundError(f"Evidence not found: {evidence_file}")
 
-    chunks = list(evidence_chunks(evidence_file, chunk_chars))
-    if not chunks:
+    all_chunks = list(evidence_chunks(evidence_file, chunk_chars))
+    if not all_chunks:
         raise ValueError(f"No textual evidence found in {evidence_file}")
 
+    chunks = all_chunks[:max_chunks] if max_chunks else all_chunks
+    chunks_were_limited = len(chunks) < len(all_chunks)
+
+    crawl_was_limited = False
+    manifest_file = evidence_dir / "manifest.json"
+    if manifest_file.exists():
+        manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+        crawl_was_limited = bool(manifest.get("stopped_by_page_limit"))
+
+    evidence_is_partial = chunks_were_limited or crawl_was_limited
     aggregate = {name: 0.0 for name in QUESTIONS}
     coherent_chunks: list[int] = []
     chunk_log = evidence_dir / "jev_chunks.jsonl"
@@ -183,13 +197,24 @@ def classify_site(
         positive_threshold=positive_threshold,
         negative_threshold=negative_threshold,
     )
+    provisional_classification = classification if evidence_is_partial else None
+    if evidence_is_partial:
+        classification = "partial_evidence_smoke_test"
+        is_digital_twin = None
+        requires_review = True
+
     result = {
         "site_name": site_name,
         "classification": classification,
+        "provisional_classification": provisional_classification,
         "is_digital_twin": is_digital_twin,
         "requires_human_review": requires_review,
+        "evidence_is_partial": evidence_is_partial,
+        "crawl_was_limited": crawl_was_limited,
+        "chunks_were_limited": chunks_were_limited,
         "criterion_probabilities": aggregate,
         "chunks_supporting_all_core_criteria": coherent_chunks,
+        "evidence_chunks_available": len(all_chunks),
         "evidence_chunks_sent": len(chunks),
         "model": model,
     }
