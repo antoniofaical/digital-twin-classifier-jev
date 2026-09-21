@@ -185,3 +185,121 @@ def test_percentage_selection_is_evenly_spaced(tmp_path, monkeypatch) -> None:
     assert result["source_chunk_numbers"] == [1, 4]
     assert result["evidence_chunks_available"] == 4
     assert result["evidence_chunks_sent"] == 2
+
+
+def test_auto_translation_sends_non_english_text_to_deepl(
+    tmp_path, monkeypatch
+) -> None:
+    probabilities = {name: 0.10 for name in classifier.QUESTIONS}
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    class FakeResponse:
+        def __init__(self, payload: dict[str, Any]) -> None:
+            self.payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return self.payload
+
+    def fake_post(url: str, **kwargs: Any) -> FakeResponse:
+        calls.append((url, kwargs))
+        if url == classifier.DEEPL_FREE_ENDPOINT:
+            return FakeResponse(
+                {
+                    "translations": [
+                        {
+                            "detected_source_language": "ES",
+                            "text": "Digital twin evidence",
+                            "billed_characters": 24,
+                        }
+                    ]
+                }
+            )
+        return FakeResponse(
+            {
+                "answers": {
+                    name: {"type": "noul", "noul": probability}
+                    for name, probability in probabilities.items()
+                }
+            }
+        )
+
+    monkeypatch.setattr(classifier.requests, "post", fake_post)
+    site_dir = tmp_path / "evidence" / "site1"
+    site_dir.mkdir(parents=True)
+    (site_dir / "evidence.jsonl").write_text(
+        json.dumps(
+            {
+                "url": "https://example.com/",
+                "language_hint": "es",
+                "text": "Evidencia de gemelo digital",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = classifier.classify_site(
+        site_name="site1",
+        evidence_dir=site_dir,
+        api_key="jev-secret",
+        translation_mode="auto",
+        translation_target="EN",
+        deepl_api_key="deepl-secret:fx",
+    )
+
+    assert [url for url, _ in calls] == [
+        classifier.DEEPL_FREE_ENDPOINT,
+        classifier.JEV_ENDPOINT,
+    ]
+    jev_pages = calls[1][1]["json"]["state"]["pages"]
+    assert jev_pages[0]["text"] == "Digital twin evidence"
+    assert result["translation"]["deepl_requests"] == 1
+    assert result["translation"]["billed_characters"] == 24
+    translation = json.loads(
+        (site_dir / "translations.jsonl").read_text().splitlines()[0]
+    )
+    assert translation["url"] == "https://example.com/"
+    assert translation["detected_source_language"] == "ES"
+    assert translation["translated_text"] == "Digital twin evidence"
+
+
+def test_auto_translation_skips_explicit_english_hint(tmp_path, monkeypatch) -> None:
+    probabilities = {name: 0.10 for name in classifier.QUESTIONS}
+    calls: list[str] = []
+
+    def fake_post(url: str, **kwargs: Any) -> FakeJevResponse:
+        del kwargs
+        calls.append(url)
+        if url != classifier.JEV_ENDPOINT:
+            raise AssertionError("English evidence must not call DeepL")
+        return FakeJevResponse(probabilities)
+
+    monkeypatch.setattr(classifier.requests, "post", fake_post)
+    site_dir = tmp_path / "evidence" / "site1"
+    site_dir.mkdir(parents=True)
+    (site_dir / "evidence.jsonl").write_text(
+        json.dumps(
+            {
+                "url": "https://example.com/",
+                "language_hint": "en-US",
+                "text": "English evidence",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = classifier.classify_site(
+        site_name="site1",
+        evidence_dir=site_dir,
+        api_key="jev-secret",
+        translation_mode="auto",
+        deepl_api_key="deepl-secret:fx",
+    )
+
+    assert calls == [classifier.JEV_ENDPOINT]
+    assert result["translation"]["deepl_requests"] == 0
+    assert result["translation"]["skipped_english_page_fragments"] == 1
