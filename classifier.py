@@ -183,7 +183,7 @@ def classify_site(
     if max_chunks < 0:
         raise ValueError("max_chunks must be zero or a positive integer")
     if evidence_percentage is not None and not 0 < evidence_percentage <= 100:
-        raise ValueError("evidence_percentage must be greater than zero and at most 100")
+        raise ValueError(\n            "evidence_percentage must be greater than zero and at most 100"\n        )
     if evidence_percentage is not None and max_chunks:
         raise ValueError("Use evidence_percentage or max_chunks, not both")
 
