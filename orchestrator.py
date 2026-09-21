@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import shutil
@@ -17,9 +18,11 @@ from pathlib import Path
 from typing import Any, TextIO, TypeVar
 
 from classifier import (
+    CLASSIFICATION_SCHEMA_VERSION,
     classify_site,
     evidence_chunks,
     is_english_hint,
+    rescore_site,
     select_evidence_chunks,
 )
 from scraper import (
@@ -70,10 +73,10 @@ SCRAPER_CONFIG = {
 CLASSIFIER_CONFIG = {
     "model": "jev-latest",
     "chunk_chars": 20_000,
-    "positive_threshold": 0.70,
-    "negative_threshold": 0.30,
     "request_timeout": 60,
 }
+
+DEFAULT_CSV_OUTPUT = Path("digital_twin_scores.csv")
 
 T = TypeVar("T")
 
@@ -343,12 +346,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=("smoke", "crawl", "classify"),
+        choices=("smoke", "crawl", "classify", "score", "export"),
         default="smoke",
         help=(
             "smoke: bounded crawl plus one Jev call; "
             "crawl: full crawl with no API calls; "
-            "classify: choose a percentage of previously saved evidence"
+            "classify: choose a percentage of previously saved evidence; "
+            "score: recompute adherence from saved Jev responses; "
+            "export: consolidate scored results into CSV"
         ),
     )
     parser.add_argument(
@@ -479,6 +484,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="approve the displayed bulk API plan without an interactive confirmation",
     )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help=(f"CSV destination for export mode, default: {DEFAULT_CSV_OUTPUT}"),
+    )
     args = parser.parse_args(argv)
     if args.percentage is not None and args.mode != "classify":
         parser.error("--percentage can only be used with --mode classify")
@@ -488,6 +498,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--recover-existing-crawls can only be used with --mode crawl")
     if args.recover_existing_crawls and args.force_crawl:
         parser.error("--recover-existing-crawls cannot be combined with --force-crawl")
+    if args.output is not None and args.mode != "export":
+        parser.error("--output can only be used with --mode export")
     return args
 
 
@@ -940,6 +952,102 @@ def print_bulk_summary(
         print(f"[{name}] failed: {error}")
 
 
+CSV_FIELDS = (
+    "site_name",
+    "site_url",
+    "digital_twin_adherence_score",
+    "specific_counterpart",
+    "individualized_data_link",
+    "repeated_synchronization",
+    "simulation_prediction",
+    "self_claim_score",
+    "self_claim",
+    "enabling_technology_score",
+    "evidence_is_partial",
+    "evidence_chunks_available",
+    "evidence_chunks_sent",
+    "main_strength",
+    "main_gap",
+)
+
+
+def export_scores_csv(
+    *,
+    sites: list[dict[str, str]],
+    site_dirs: dict[str, Path],
+    output_file: Path,
+) -> int:
+    """Write one sortable row per site from versioned adherence results."""
+    rows: list[dict[str, Any]] = []
+    for site in sites:
+        classification_file = site_dirs[site["name"]] / "classification.json"
+        if not classification_file.is_file():
+            raise FileNotFoundError(
+                f"Scored classification not found for {site['name']}: "
+                f"{classification_file}. Run --mode score first."
+            )
+        result = json.loads(classification_file.read_text(encoding="utf-8"))
+        if not isinstance(result, dict):
+            raise TypeError(
+                f"Classification must be a JSON object: {classification_file}"
+            )
+        if result.get("classification_schema_version") != CLASSIFICATION_SCHEMA_VERSION:
+            raise ValueError(
+                f"{site['name']} uses an old classification schema. "
+                "Run --mode score first."
+            )
+        criterion_scores = result.get("criterion_scores")
+        auxiliary_scores = result.get("auxiliary_scores")
+        if not isinstance(criterion_scores, dict) or not isinstance(
+            auxiliary_scores, dict
+        ):
+            raise TypeError(f"Incomplete scored classification: {classification_file}")
+        try:
+            row = {
+                "site_name": site["name"],
+                "site_url": site["url"],
+                "digital_twin_adherence_score": result["digital_twin_adherence_score"],
+                "specific_counterpart": criterion_scores["specific_counterpart"],
+                "individualized_data_link": criterion_scores[
+                    "individualized_data_link"
+                ],
+                "repeated_synchronization": criterion_scores[
+                    "repeated_synchronization"
+                ],
+                "simulation_prediction": criterion_scores["simulation_prediction"],
+                "self_claim_score": auxiliary_scores["self_claim"],
+                "self_claim": result["self_claim"],
+                "enabling_technology_score": auxiliary_scores["enabling_technology"],
+                "evidence_is_partial": result.get("evidence_is_partial", False),
+                "evidence_chunks_available": result.get(
+                    "evidence_chunks_available", ""
+                ),
+                "evidence_chunks_sent": result.get("evidence_chunks_sent", ""),
+                "main_strength": result["main_strength"],
+                "main_gap": result["main_gap"],
+            }
+        except KeyError as exc:
+            raise ValueError(
+                f"Incomplete scored classification for {site['name']}: missing {exc}"
+            ) from exc
+        rows.append(row)
+
+    rows.sort(
+        key=lambda row: (
+            -float(row["digital_twin_adherence_score"]),
+            str(row["site_name"]).casefold(),
+        )
+    )
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output_file.with_name(f".{output_file.name}.tmp")
+    with temporary.open("w", encoding="utf-8-sig", newline="") as destination:
+        writer = csv.DictWriter(destination, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+    temporary.replace(output_file)
+    return len(rows)
+
+
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     mode = args.mode
@@ -980,6 +1088,67 @@ def main(argv: list[str] | None = None) -> None:
         )
 
     EVIDENCE_ROOT.mkdir(parents=True, exist_ok=True)
+
+    if mode == "score":
+        print(
+            "SCORING: saved Jev responses only; no network or API calls will be made."
+        )
+        print(f"Selected {len(sites)} site(s); using up to {args.workers} worker(s).")
+        score_progress = TerminalProgress(
+            len(sites),
+            enabled=terminal_progress_enabled(disabled=args.no_progress),
+            label="Scoring",
+            color="blue",
+        )
+        score_progress.start()
+
+        def score(site: dict[str, str]) -> dict[str, Any]:
+            return rescore_site(
+                site_name=site["name"],
+                evidence_dir=site_dirs[site["name"]],
+            )
+
+        scored, score_errors = run_site_jobs(
+            sites,
+            args.workers,
+            score,
+            progress=score_progress,
+            successes_are_terminal=True,
+        )
+        score_progress.stop()
+        for site in sites:
+            result = scored.get(site["name"])
+            if result is None:
+                continue
+            evidence_scope = (
+                "partial evidence" if result["evidence_is_partial"] else "full evidence"
+            )
+            print(
+                f"[{site['name']}] adherence="
+                f"{result['digital_twin_adherence_score']:.2f}/100; "
+                f"gap={result['main_gap']}; {evidence_scope}"
+            )
+        print_bulk_summary(
+            selected=len(sites),
+            completed=len(scored),
+            errors=score_errors,
+        )
+        if score_errors:
+            raise BulkExecutionError(
+                f"{len(score_errors)} site(s) failed during score recomputation"
+            )
+        return
+
+    if mode == "export":
+        output_file = args.output or DEFAULT_CSV_OUTPUT
+        print("CSV EXPORT: local scored results only; no API calls will be made.")
+        exported = export_scores_csv(
+            sites=sites,
+            site_dirs=site_dirs,
+            output_file=output_file,
+        )
+        print(f"CSV EXPORT COMPLETE: rows={exported}, output={output_file}")
+        return
 
     if args.recover_existing_crawls:
         print("CRAWL RECOVERY: no website, Jev, or DeepL calls will be made.")
@@ -1308,20 +1477,15 @@ def main(argv: list[str] | None = None) -> None:
         result = results.get(site["name"])
         if result is None:
             continue
-        if result["evidence_is_partial"]:
-            label = (
-                "partial smoke-test result" if smoke_test else "partial classification"
-            )
-            print(
-                f"[{site['name']}] {label}: "
-                f"{result['provisional_classification']} "
-                "(not a final classification)"
-            )
-        else:
-            print(
-                f"[{site['name']}] {result['classification']} "
-                f"(is_digital_twin={result['is_digital_twin']})"
-            )
+        evidence_scope = (
+            "partial evidence" if result["evidence_is_partial"] else "full evidence"
+        )
+        self_claim = "yes" if result["self_claim"] else "no"
+        print(
+            f"[{site['name']}] adherence="
+            f"{result['digital_twin_adherence_score']:.2f}/100; "
+            f"gap={result['main_gap']}; self_claim={self_claim}; {evidence_scope}"
+        )
 
     print_bulk_summary(
         selected=len(sites),
