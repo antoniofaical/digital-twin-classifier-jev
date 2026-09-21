@@ -34,9 +34,7 @@ def test_evidence_chunks_preserve_all_text(tmp_path) -> None:
     )
 
     chunks = list(classifier.evidence_chunks(evidence, chunk_chars=10))
-    recovered = "".join(
-        page["text"] for chunk in chunks for page in chunk["pages"]
-    )
+    recovered = "".join(page["text"] for chunk in chunks for page in chunk["pages"])
 
     assert recovered == "A" * 12 + "B" * 8
 
