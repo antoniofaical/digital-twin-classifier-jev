@@ -10,24 +10,48 @@ import xml.etree.ElementTree as ET
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urldefrag, urljoin, urlparse, urlunparse
+from urllib.parse import parse_qsl, urldefrag, urlencode, urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, ParserRejectedMarkup
 
 try:
     from pypdf import PdfReader
+    from pypdf.errors import PdfReadError
 except ImportError:
     PdfReader = None
+    PdfReadError = ValueError
 
 
 USER_AGENT = "DigitalTwinClassifier/1.0"
 SKIPPED_EXTENSIONS = {
-    ".7z", ".avi", ".css", ".eot", ".exe", ".gif", ".ico", ".jpeg",
-    ".jpg", ".js", ".map", ".mkv", ".mov", ".mp3", ".mp4", ".png",
-    ".rar", ".svg", ".tar", ".ttf", ".wav", ".webm", ".webp",
-    ".woff", ".woff2", ".zip",
+    ".7z",
+    ".avi",
+    ".css",
+    ".eot",
+    ".exe",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".js",
+    ".map",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".png",
+    ".rar",
+    ".svg",
+    ".tar",
+    ".ttf",
+    ".wav",
+    ".webm",
+    ".webp",
+    ".woff",
+    ".woff2",
+    ".zip",
 }
 TRACKING_KEYS = {"fbclid", "gclid", "mc_cid", "mc_eid"}
 
@@ -46,7 +70,9 @@ def canonicalize(url: str, *, keep_query: bool) -> str:
         ]
         query = urlencode(sorted(pairs))
     path = re.sub(r"/{2,}", "/", parsed.path or "/")
-    return urlunparse((parsed.scheme.lower(), parsed.netloc.lower(), path, "", query, ""))
+    return urlunparse(
+        (parsed.scheme.lower(), parsed.netloc.lower(), path, "", query, "")
+    )
 
 
 def host(url: str) -> str:
@@ -104,7 +130,11 @@ def extract_response(response: requests.Response) -> tuple[str, set[str]]:
         reader = PdfReader(io.BytesIO(response.content))
         text = "\n\n".join((page.extract_text() or "") for page in reader.pages)
         return text.strip(), set()
-    if content_type.startswith("text/") or "json" in content_type or "xml" in content_type:
+    if (
+        content_type.startswith("text/")
+        or "json" in content_type
+        or "xml" in content_type
+    ):
         return response.text.strip(), set(
             re.findall(r"https?://[^\s\"'<>]+", response.text)
         )
@@ -124,7 +154,9 @@ def scrape_site(
 ) -> Path:
     """Crawl one site and create evidence/<site_name>/evidence.jsonl."""
     if not re.fullmatch(r"[A-Za-z0-9._-]+", site_name):
-        raise ValueError("site_name may contain only letters, numbers, dots, dashes, and underscores")
+        raise ValueError(
+            "site_name may contain only letters, numbers, dots, dashes, and underscores"
+        )
 
     root_url = root_url if re.match(r"^https?://", root_url) else "https://" + root_url
     root_url = canonicalize(root_url, keep_query=include_query_urls)
@@ -175,7 +207,11 @@ def scrape_site(
 
     def read_sitemap(url: str) -> None:
         value = canonicalize(url, keep_query=True)
-        if not value or value in sitemap_seen or not in_scope(value, root_url, include_subdomains):
+        if (
+            not value
+            or value in sitemap_seen
+            or not in_scope(value, root_url, include_subdomains)
+        ):
             return
         sitemap_seen.add(value)
         try:
@@ -217,7 +253,12 @@ def scrape_site(
             )
             for link in links:
                 enqueue(link)
-        except Exception as exc:
+        except (
+            requests.RequestException,
+            OSError,
+            PdfReadError,
+            ParserRejectedMarkup,
+        ) as exc:
             errors.append({"url": url, "error": str(exc)})
 
     with (site_dir / "evidence.jsonl").open("w", encoding="utf-8") as output:
