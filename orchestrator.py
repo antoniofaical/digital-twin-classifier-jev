@@ -1,4 +1,4 @@
-·¶oÍœÕÝ]××|×_[ÛnôÛ¾7}ÖÜÑæœ"""Configuration and entry point for scraping and Jev classification."""
+"""Configuration and entry point for scraping and Jev classification."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from classifier import (
     is_english_hint,
     select_evidence_chunks,
 )
-from scraper import scrape_site
+from scraper import evidence_directory_name, scrape_site
 
 SITES = [
     {"name": "madidt", "url": "https://madidt.com/"},
@@ -212,6 +212,24 @@ def select_sites(
     return selected
 
 
+def evidence_directories(
+    sites: list[dict[str, str]], evidence_root: Path
+) -> dict[str, Path]:
+    directories: dict[str, Path] = {}
+    owners: dict[str, str] = {}
+    for site in sites:
+        directory_name = evidence_directory_name(site["name"])
+        normalized = directory_name.casefold()
+        if normalized in owners:
+            raise ValueError(
+                f"site names '{owners[normalized]}' and '{site['name']}' resolve to "
+                f"the same evidence directory: {directory_name}"
+            )
+        owners[normalized] = site["name"]
+        directories[site["name"]] = evidence_root / directory_name
+    return directories
+
+
 def prompt_evidence_percentage(chunk_count: int, site_count: int = 1) -> float:
     while True:
         scope = "" if site_count == 1 else f" across {site_count} sites"
@@ -352,6 +370,7 @@ def main(argv: list[str] | None = None) -> None:
     sites = select_sites(configured_sites, requested_names)
     if not sites:
         raise ValueError("no sites are configured")
+    site_dirs = evidence_directories(sites, EVIDENCE_ROOT)
 
     scraper_config = {
         **SCRAPER_CONFIG,
@@ -386,7 +405,6 @@ def main(argv: list[str] | None = None) -> None:
         print("CLASSIFICATION: no API calls occur before bulk approval.")
     print(f"Selected {len(sites)} site(s); using up to {args.workers} worker(s).")
 
-    site_dirs = {site["name"]: EVIDENCE_ROOT / site["name"] for site in sites}
     errors: dict[str, str] = {}
 
     if run_scraper:

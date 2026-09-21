@@ -51,6 +51,14 @@ def test_scope_rejects_lookalike_domains() -> None:
     assert not scraper.in_scope("https://notexample.com/", root, True)
 
 
+def test_evidence_directory_name_slugifies_human_readable_names() -> None:
+    assert (
+        scraper.evidence_directory_name("Thoth BioSimulations")
+        == "Thoth-BioSimulations"
+    )
+    assert scraper.evidence_directory_name("Médico & Saúde") == "Medico-Saude"
+
+
 def test_sitemap_index_and_urlset_are_parsed() -> None:
     index = (
         b"<sitemapindex><sitemap><loc>https://example.com/pages.xml</loc>"

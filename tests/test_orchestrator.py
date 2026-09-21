@@ -160,6 +160,53 @@ def test_site_intent_selects_only_requested_sites(tmp_path, monkeypatch) -> None
     assert calls == ["site2"]
 
 
+def test_classify_uses_safe_directory_for_display_name(tmp_path, monkeypatch) -> None:
+    site_dir = tmp_path / "evidence" / "Thoth-BioSimulations"
+    _write_evidence(site_dir)
+    calls: dict[str, Any] = {}
+
+    def fake_classify_site(**kwargs):
+        calls["classifier"] = kwargs
+        return {
+            "evidence_is_partial": True,
+            "provisional_classification": "not_digital_twin",
+        }
+
+    monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "test-secret")
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(
+        orchestrator,
+        "SITES",
+        [
+            {
+                "name": "Thoth BioSimulations",
+                "url": "https://www.thothbiosimulations.ca",
+            }
+        ],
+    )
+    monkeypatch.setattr(orchestrator, "classify_site", fake_classify_site)
+
+    orchestrator.main(["--mode", "classify", "--percentage", "100", "--yes"])
+
+    assert calls["classifier"]["site_name"] == "Thoth BioSimulations"
+    assert calls["classifier"]["evidence_dir"] == site_dir
+
+
+def test_bulk_rejects_evidence_directory_collisions(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(
+        orchestrator,
+        "SITES",
+        [
+            {"name": "Site One", "url": "https://one.example/"},
+            {"name": "Site-One", "url": "https://two.example/"},
+        ],
+    )
+
+    with pytest.raises(ValueError, match="same evidence directory"):
+        orchestrator.main(["--mode", "crawl", "--workers", "2"])
+
+
 def test_crawl_bulk_processes_sites_concurrently(tmp_path, monkeypatch) -> None:
     barrier = threading.Barrier(2)
     calls: list[str] = []

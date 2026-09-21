@@ -6,6 +6,7 @@ import gzip
 import io
 import json
 import re
+import unicodedata
 import xml.etree.ElementTree as ET
 from collections import deque
 from datetime import datetime, timezone
@@ -54,6 +55,17 @@ SKIPPED_EXTENSIONS = {
     ".zip",
 }
 TRACKING_KEYS = {"fbclid", "gclid", "mc_cid", "mc_eid"}
+
+
+def evidence_directory_name(site_name: str) -> str:
+    """Return a filesystem-safe directory name while preserving the display name."""
+    ascii_name = (
+        unicodedata.normalize("NFKD", site_name).encode("ascii", "ignore").decode()
+    )
+    directory_name = re.sub(r"[^A-Za-z0-9._-]+", "-", ascii_name).strip(".-_")
+    if not directory_name:
+        raise ValueError("site_name must contain at least one letter or number")
+    return directory_name
 
 
 def canonicalize(url: str, *, keep_query: bool) -> str:
@@ -164,14 +176,9 @@ def scrape_site(
     request_timeout: int = 20,
 ) -> Path:
     """Crawl one site and create evidence/<site_name>/evidence.jsonl."""
-    if not re.fullmatch(r"[A-Za-z0-9._-]+", site_name):
-        raise ValueError(
-            "site_name may contain only letters, numbers, dots, dashes, and underscores"
-        )
-
     root_url = root_url if re.match(r"^https?://", root_url) else "https://" + root_url
     root_url = canonicalize(root_url, keep_query=include_query_urls)
-    site_dir = evidence_root / site_name
+    site_dir = evidence_root / evidence_directory_name(site_name)
     site_dir.mkdir(parents=True, exist_ok=True)
 
     session = requests.Session()
