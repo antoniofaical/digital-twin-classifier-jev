@@ -1,0 +1,20 @@
+{
+  "site_name": "cellverse",
+  "root_url": "https://www.cellverse.org/",
+  "created_at": "2026-09-21T16:29:46.180865+00:00",
+  "pages_saved": 28,
+  "urls_visited": 28,
+  "sitemaps_checked": 4,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://www.cellverse.org/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.cellverse.org/wp-sitemap.xml"
+    },
+    {
+      "url": "https://www.cellverse.org/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://www.cellverse.org/sitemap_index.xml"
+    }
+  ]
+}

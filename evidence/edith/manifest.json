@@ -1,0 +1,16 @@
+{
+  "site_name": "edith",
+  "root_url": "https://www.edith-csa.eu/",
+  "created_at": "2026-09-21T16:32:34.352343+00:00",
+  "pages_saved": 304,
+  "urls_visited": 304,
+  "sitemaps_checked": 10,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://www.edith-csa.eu/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://www.edith-csa.eu/sitemap_index.xml"
+    }
+  ]
+}

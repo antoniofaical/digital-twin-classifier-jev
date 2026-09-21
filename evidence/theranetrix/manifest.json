@@ -1,0 +1,52 @@
+{
+  "site_name": "theranetrix",
+  "root_url": "https://theranetrix.com/",
+  "created_at": "2026-09-21T16:30:22.490142+00:00",
+  "pages_saved": 21,
+  "urls_visited": 30,
+  "sitemaps_checked": 5,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://theranetrix.com/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://theranetrix.com/sitemap_index.xml"
+    },
+    {
+      "url": "https://theranetrix.com/company/{contact link}",
+      "error": "404 Client Error: Not Found for url: https://theranetrix.com/company/%7Bcontact%20link%7D"
+    },
+    {
+      "url": "https://theranetrix.com/team/{contact link}",
+      "error": "404 Client Error: Not Found for url: https://theranetrix.com/team/%7Bcontact%20link%7D"
+    },
+    {
+      "url": "https://theranetrix.com/news/{contact link}",
+      "error": "404 Client Error: Not Found for url: https://theranetrix.com/news/%7Bcontact%20link%7D"
+    },
+    {
+      "url": "https://theranetrix.com/job-offer/{contact link}",
+      "error": "404 Client Error: Not Found for url: https://theranetrix.com/job-offer/%7Bcontact%20link%7D"
+    },
+    {
+      "url": "https://theranetrix.com/our-service-for-you/{contact link}",
+      "error": "404 Client Error: Not Found for url: https://theranetrix.com/our-service-for-you/%7Bcontact%20link%7D"
+    },
+    {
+      "url": "https://theranetrix.com/our-quality-pledge/{contact link}",
+      "error": "404 Client Error: Not Found for url: https://theranetrix.com/our-quality-pledge/%7Bcontact%20link%7D"
+    },
+    {
+      "url": "https://theranetrix.com/holistic-competent/{contact link}",
+      "error": "404 Client Error: Not Found for url: https://theranetrix.com/holistic-competent/%7Bcontact%20link%7D"
+    },
+    {
+      "url": "https://theranetrix.com/references/{contact link}",
+      "error": "404 Client Error: Not Found for url: https://theranetrix.com/references/%7Bcontact%20link%7D"
+    },
+    {
+      "url": "https://theranetrix.com/partners/{contact link}",
+      "error": "404 Client Error: Not Found for url: https://theranetrix.com/partners/%7Bcontact%20link%7D"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "site_name": "avatarsbio",
+  "root_url": "https://avatarsbio.com/",
+  "created_at": "2026-09-21T16:24:04.022346+00:00",
+  "pages_saved": 17,
+  "urls_visited": 17,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://avatarsbio.com/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://avatarsbio.com/sitemap_index.xml"
+    },
+    {
+      "url": "https://avatarsbio.com/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://avatarsbio.com/wp-sitemap.xml"
+    }
+  ]
+}

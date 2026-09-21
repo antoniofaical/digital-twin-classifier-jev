@@ -1,0 +1,184 @@
+{
+  "site_name": "quanthealth",
+  "root_url": "https://quanthealth.ai/",
+  "created_at": "2026-09-21T16:33:34.605916+00:00",
+  "pages_saved": 21,
+  "urls_visited": 62,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://quanthealth.ai/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/sitemap_index.xml"
+    },
+    {
+      "url": "https://quanthealth.ai/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/wp-sitemap.xml"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-releases-outcomes-showing-215m-in-financial-returns-and-85-accuracy-for-pharmaceutical-organizations",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-releases-outcomes-showing-215m-in-financial-returns-and-85-accuracy-for-pharmaceutical-organizations"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/bridging-the-gap-between-biological-rationale-and-clinical-success-the-power-of-clinical-trial-simulations",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/bridging-the-gap-between-biological-rationale-and-clinical-success-the-power-of-clinical-trial-simulations"
+    },
+    {
+      "url": "https://quanthealth.ai/case-study/respiratory-disease",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/case-study/respiratory-disease"
+    },
+    {
+      "url": "https://quanthealth.ai/terms-and-conditions",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/terms-and-conditions"
+    },
+    {
+      "url": "https://quanthealth.ai/case-study",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/case-study"
+    },
+    {
+      "url": "https://quanthealth.ai/technology",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/technology"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-taps-omny-health-to-improve-dataset-structures-for-its-ai-platform",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-taps-omny-health-to-improve-dataset-structures-for-its-ai-platform"
+    },
+    {
+      "url": "https://quanthealth.ai/platform",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/platform"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/ai-is-a-decision-intelligence-tool-not-an-administrative-assistant",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/ai-is-a-decision-intelligence-tool-not-an-administrative-assistant"
+    },
+    {
+      "url": "https://quanthealth.ai/quanthealth-blog",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/quanthealth-blog"
+    },
+    {
+      "url": "https://quanthealth.ai/privacy-policy",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/privacy-policy"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-achieves-impressive-8x-financial-growth-across-life-sciences-engagements",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-achieves-impressive-8x-financial-growth-across-life-sciences-engagements"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-unveils-the-industrys-first-pharmaco-clinical-foundation-model-focused-on-clinical-applications-of-ai-in-life-sciences",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-unveils-the-industrys-first-pharmaco-clinical-foundation-model-focused-on-clinical-applications-of-ai-in-life-sciences"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-simulates-350-clinical-trials-with-90-accuracy",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-simulates-350-clinical-trials-with-90-accuracy"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-appoints-dr.-adam-petrich-md-as-its-first-chief-medical-officer-and-adam-goldberger-as-first-chief-financial-officer",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-appoints-dr.-adam-petrich-md-as-its-first-chief-medical-officer-and-adam-goldberger-as-first-chief-financial-officer"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/drug-development-has-a-learning-speed-problem",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/drug-development-has-a-learning-speed-problem"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/why-competitive-positioning-must-start-before-clinical-development-ends",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/why-competitive-positioning-must-start-before-clinical-development-ends"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/a-new-chapter-for-quanthealth-biopharma-our-series-b-is-ushering-in-simulation-first-clinical-development",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/a-new-chapter-for-quanthealth-biopharma-our-series-b-is-ushering-in-simulation-first-clinical-development"
+    },
+    {
+      "url": "https://quanthealth.ai/events",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/events"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-launches-predictive-competitive-positioning-capabilities-to-help-life-sciences-companies-optimize-for-market-success",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-launches-predictive-competitive-positioning-capabilities-to-help-life-sciences-companies-optimize-for-market-success"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/newgtmexecs",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/newgtmexecs"
+    },
+    {
+      "url": "https://quanthealth.ai/jobs/4943005101",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/jobs/4943005101"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/ai-in-clinical-development-summit-to-showcase-life-sciences-and-technology-leaders-driving-real-world-ai-impact",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/ai-in-clinical-development-summit-to-showcase-life-sciences-and-technology-leaders-driving-real-world-ai-impact"
+    },
+    {
+      "url": "https://quanthealth.ai/case-study/metabolism-endocrinology",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/case-study/metabolism-endocrinology"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-to-host-second-annual-ai-in-clinical-development-summit-to-highlight-the-latest-breakthroughs-in-drug-development",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-to-host-second-annual-ai-in-clinical-development-summit-to-highlight-the-latest-breakthroughs-in-drug-development"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-hosts-inaugural-ai-in-clinical-development-summit-amplifying-innovation-in-drug-development",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-hosts-inaugural-ai-in-clinical-development-summit-amplifying-innovation-in-drug-development"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-appoints-esteemed-pharmaceutical-executives-to-inaugural-advisory-board",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-appoints-esteemed-pharmaceutical-executives-to-inaugural-advisory-board"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-secures-funding-from-accenture-and-other-investors-to-deliver-ai-powered-clinical-trial-simulations-for-pharmaceutical-and-biotech-companies",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-secures-funding-from-accenture-and-other-investors-to-deliver-ai-powered-clinical-trial-simulations-for-pharmaceutical-and-biotech-companies"
+    },
+    {
+      "url": "https://quanthealth.ai/case-study/hnscc-enormous-value-creation",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/case-study/hnscc-enormous-value-creation"
+    },
+    {
+      "url": "https://quanthealth.ai/case-study/inflammatory-diseases",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/case-study/inflammatory-diseases"
+    },
+    {
+      "url": "https://quanthealth.ai/jobs/4906873101",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/jobs/4906873101"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-secures-strategic-investment-from-sanofi-ventures-to-accelerate-ai-driven-clinical-trials-1",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-secures-strategic-investment-from-sanofi-ventures-to-accelerate-ai-driven-clinical-trials-1"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/how-ai-will-impact-the-development-of-new-medicines",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/how-ai-will-impact-the-development-of-new-medicines"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-expands-its-leadership-team-primes-its-saas-platform-for-enterprise-grade-pharmaceutical-partnerships",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-expands-its-leadership-team-primes-its-saas-platform-for-enterprise-grade-pharmaceutical-partnerships"
+    },
+    {
+      "url": "https://quanthealth.ai/jobs/4860694101",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/jobs/4860694101"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-expands-executive-team-with-world-class-medical-and-innovation-leaders",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-expands-executive-team-with-world-class-medical-and-innovation-leaders"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-leverages-atropos-healths-federated-data-model-to-bring-its-trial-simulations-to-the-point-of-care",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-leverages-atropos-healths-federated-data-model-to-bring-its-trial-simulations-to-the-point-of-care"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/the-change-worth-getting-out-of-bed-for-why-decision-intelligence-is-the-next-transformation-in-drug-development",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/the-change-worth-getting-out-of-bed-for-why-decision-intelligence-is-the-next-transformation-in-drug-development"
+    },
+    {
+      "url": "https://quanthealth.ai/careers",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/careers"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/quanthealth-raises-45-million-series-b-led-by-qumra-capital-to-accelerate-simulation-first-clinical-trial-development",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/quanthealth-raises-45-million-series-b-led-by-qumra-capital-to-accelerate-simulation-first-clinical-trial-development"
+    },
+    {
+      "url": "https://quanthealth.ai/resources/trust-is-the-product-why-quantifying-confidence-is-ais-biggest-competitive-advantage",
+      "error": "404 Client Error: Not Found for url: https://quanthealth.ai/resources/trust-is-the-product-why-quantifying-confidence-is-ais-biggest-competitive-advantage"
+    }
+  ]
+}

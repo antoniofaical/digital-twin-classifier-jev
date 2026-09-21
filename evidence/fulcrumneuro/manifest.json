@@ -1,0 +1,20 @@
+{
+  "site_name": "fulcrumneuro",
+  "root_url": "https://www.fulcrumneuro.com/",
+  "created_at": "2026-09-21T16:29:04.663742+00:00",
+  "pages_saved": 13,
+  "urls_visited": 13,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://www.fulcrumneuro.com/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.fulcrumneuro.com/wp-sitemap.xml"
+    },
+    {
+      "url": "https://www.fulcrumneuro.com/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://www.fulcrumneuro.com/sitemap_index.xml"
+    }
+  ]
+}

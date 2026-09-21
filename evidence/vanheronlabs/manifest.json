@@ -1,0 +1,28 @@
+{
+  "site_name": "vanheronlabs",
+  "root_url": "https://vanheronlabs.com/",
+  "created_at": "2026-09-21T16:23:16.262149+00:00",
+  "pages_saved": 9,
+  "urls_visited": 9,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://vanheronlabs.com/robots.txt",
+      "error": "HTTPSConnectionPool(host='vanheronlabs.com', port=443): Max retries exceeded with url: /robots.txt (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1016)')))"
+    },
+    {
+      "url": "https://vanheronlabs.com/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://vanheronlabs.com/sitemap_index.xml"
+    },
+    {
+      "url": "https://vanheronlabs.com/sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://vanheronlabs.com/sitemap.xml"
+    },
+    {
+      "url": "https://vanheronlabs.com/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://vanheronlabs.com/wp-sitemap.xml"
+    }
+  ]
+}

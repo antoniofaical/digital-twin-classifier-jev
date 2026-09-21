@@ -1,0 +1,24 @@
+{
+  "site_name": "ventcreativity",
+  "root_url": "https://www.ventcreativity.com/",
+  "created_at": "2026-09-21T16:27:44.334029+00:00",
+  "pages_saved": 8,
+  "urls_visited": 8,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://www.ventcreativity.com/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.ventcreativity.com/wp-sitemap.xml"
+    },
+    {
+      "url": "https://www.ventcreativity.com/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://www.ventcreativity.com/sitemap_index.xml"
+    },
+    {
+      "url": "https://www.ventcreativity.com/sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.ventcreativity.com/sitemap.xml"
+    }
+  ]
+}

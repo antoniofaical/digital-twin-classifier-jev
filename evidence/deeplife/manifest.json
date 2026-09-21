@@ -1,0 +1,32 @@
+{
+  "site_name": "deeplife",
+  "root_url": "https://deeplife.co/",
+  "created_at": "2026-09-21T16:33:10.293340+00:00",
+  "pages_saved": 30,
+  "urls_visited": 32,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://deeplife.co/sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.deeplife.co/sitemap.xml"
+    },
+    {
+      "url": "https://deeplife.co/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.deeplife.co/wp-sitemap.xml"
+    },
+    {
+      "url": "https://deeplife.co/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://www.deeplife.co/sitemap_index.xml"
+    },
+    {
+      "url": "https://www.deeplife.co/product/cell-blueprint",
+      "error": "401 Client Error: Unauthorized for url: https://www.deeplife.co/product/cell-blueprint"
+    },
+    {
+      "url": "https://www.deeplife.co/product/omicstore",
+      "error": "401 Client Error: Unauthorized for url: https://www.deeplife.co/product/omicstore"
+    }
+  ]
+}

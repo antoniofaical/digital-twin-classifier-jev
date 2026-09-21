@@ -1,0 +1,20 @@
+{
+  "site_name": "neuroteg",
+  "root_url": "https://neuroteg.com/",
+  "created_at": "2026-09-21T16:30:20.503969+00:00",
+  "pages_saved": 12,
+  "urls_visited": 12,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://neuroteg.com/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://neuroteg.com/wp-sitemap.xml"
+    },
+    {
+      "url": "https://neuroteg.com/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://neuroteg.com/sitemap_index.xml"
+    }
+  ]
+}

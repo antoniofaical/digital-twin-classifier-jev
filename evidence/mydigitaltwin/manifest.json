@@ -1,0 +1,60 @@
+{
+  "site_name": "mydigitaltwin",
+  "root_url": "https://www.mydigitaltwin.at/",
+  "created_at": "2026-09-21T16:38:36.186511+00:00",
+  "pages_saved": 829,
+  "urls_visited": 839,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://www.mydigitaltwin.at/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://www.mydigitaltwin.at/sitemap_index.xml"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.mydigitaltwin.at/wp-sitemap.xml"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/template-pages/contact-pages/contact-v1",
+      "error": "401 Client Error: Unauthorized for url: https://www.mydigitaltwin.at/template-pages/contact-pages/contact-v1"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/template-pages/services",
+      "error": "401 Client Error: Unauthorized for url: https://www.mydigitaltwin.at/template-pages/services"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/template-pages/contact-pages",
+      "error": "404 Client Error: Not Found for url: https://www.mydigitaltwin.at/template-pages/contact-pages"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/template-pages/contact-pages/contact-v2",
+      "error": "401 Client Error: Unauthorized for url: https://www.mydigitaltwin.at/template-pages/contact-pages/contact-v2"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/template-pages/blog-pages/blog-v1",
+      "error": "401 Client Error: Unauthorized for url: https://www.mydigitaltwin.at/template-pages/blog-pages/blog-v1"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/de/template-pages/contact-pages/contact-v1",
+      "error": "401 Client Error: Unauthorized for url: https://www.mydigitaltwin.at/de/template-pages/contact-pages/contact-v1"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/de/template-pages/services",
+      "error": "401 Client Error: Unauthorized for url: https://www.mydigitaltwin.at/de/template-pages/services"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/de/template-pages/contact-pages",
+      "error": "404 Client Error: Not Found for url: https://www.mydigitaltwin.at/de/template-pages/contact-pages"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/de/template-pages/contact-pages/contact-v2",
+      "error": "401 Client Error: Unauthorized for url: https://www.mydigitaltwin.at/de/template-pages/contact-pages/contact-v2"
+    },
+    {
+      "url": "https://www.mydigitaltwin.at/de/template-pages/blog-pages/blog-v1",
+      "error": "401 Client Error: Unauthorized for url: https://www.mydigitaltwin.at/de/template-pages/blog-pages/blog-v1"
+    }
+  ]
+}

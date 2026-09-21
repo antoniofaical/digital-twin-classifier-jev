@@ -1,0 +1,36 @@
+{
+  "site_name": "Pumas-AI",
+  "root_url": "https://pumas.ai/",
+  "created_at": "2026-09-21T16:22:46.366038+00:00",
+  "pages_saved": 142,
+  "urls_visited": 146,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://pumas.ai/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://pumas.ai/wp-sitemap.xml"
+    },
+    {
+      "url": "https://pumas.ai/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://pumas.ai/sitemap_index.xml"
+    },
+    {
+      "url": "https://pumas.ai/products/pumas/overview",
+      "error": "404 Client Error: Not Found for url: https://pumas.ai/products/pumas/overview"
+    },
+    {
+      "url": "https://pumas.ai/services",
+      "error": "404 Client Error: Not Found for url: https://pumas.ai/services"
+    },
+    {
+      "url": "https://pumas.ai/pumas",
+      "error": "404 Client Error: Not Found for url: https://pumas.ai/pumas"
+    },
+    {
+      "url": "https://pumas.ai/products/pumas/download",
+      "error": "404 Client Error: Not Found for url: https://pumas.ai/products/pumas/download"
+    }
+  ]
+}

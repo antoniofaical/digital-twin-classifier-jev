@@ -1,0 +1,32 @@
+{
+  "site_name": "xbxbio",
+  "root_url": "https://www.xbxbio.com/",
+  "created_at": "2026-09-21T16:30:13.817976+00:00",
+  "pages_saved": 188,
+  "urls_visited": 191,
+  "sitemaps_checked": 16,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://www.xbxbio.com/sitemap_index.xml",
+      "error": "400 Client Error: Bad Request for url: https://www.xbxbio.com/sitemap_index.xml"
+    },
+    {
+      "url": "https://www.xbxbio.com/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.xbxbio.com/wp-sitemap.xml"
+    },
+    {
+      "url": "https://www.xbxbio.com/ar/request-a-breifing",
+      "error": "Response ended prematurely"
+    },
+    {
+      "url": "https://www.xbxbio.com/company",
+      "error": "Response ended prematurely"
+    },
+    {
+      "url": "https://www.xbxbio.com/Contact",
+      "error": "404 Client Error: Not Found for url: https://www.xbxbio.com/Contact"
+    }
+  ]
+}

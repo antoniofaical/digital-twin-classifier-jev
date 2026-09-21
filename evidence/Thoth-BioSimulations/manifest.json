@@ -1,0 +1,24 @@
+{
+  "site_name": "Thoth BioSimulations",
+  "root_url": "https://www.thothbiosimulations.ca/",
+  "created_at": "2026-09-21T16:22:53.998905+00:00",
+  "pages_saved": 34,
+  "urls_visited": 35,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://www.thothbiosimulations.ca/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.thothbiosimulations.ca/wp-sitemap.xml"
+    },
+    {
+      "url": "https://www.thothbiosimulations.ca/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://www.thothbiosimulations.ca/sitemap_index.xml"
+    },
+    {
+      "url": "http://thothbiosimulations.ca/bioinformatics-application",
+      "error": "404 Client Error: Not Found for url: https://www.thothbiosimulations.ca/bioinformatics-application"
+    }
+  ]
+}

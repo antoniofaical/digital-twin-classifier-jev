@@ -1,0 +1,20 @@
+{
+  "site_name": "Opyl",
+  "root_url": "https://opyl.netlify.app/",
+  "created_at": "2026-09-21T16:22:23.456096+00:00",
+  "pages_saved": 51,
+  "urls_visited": 51,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://opyl.netlify.app/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://opyl.netlify.app/sitemap_index.xml"
+    },
+    {
+      "url": "https://opyl.netlify.app/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://opyl.netlify.app/wp-sitemap.xml"
+    }
+  ]
+}

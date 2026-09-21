@@ -1,0 +1,42 @@
+{
+  "site_name": "madidt",
+  "classification": "claimed_digital_twin_unverified",
+  "provisional_classification": null,
+  "is_digital_twin": null,
+  "requires_human_review": true,
+  "evidence_is_partial": false,
+  "crawl_was_limited": false,
+  "chunks_were_limited": false,
+  "evidence_percentage_requested": 100.0,
+  "sampling_strategy": "all_chunks",
+  "source_chunk_numbers": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "translation": {
+    "mode": "auto",
+    "target_language": "EN",
+    "deepl_requests": 8,
+    "translated_page_fragments": 65,
+    "skipped_english_page_fragments": 0,
+    "billed_characters": 123593
+  },
+  "criterion_probabilities": {
+    "specific_counterpart": 0.23,
+    "individualized_data_link": 0.37,
+    "repeated_synchronization": 0.32,
+    "simulation_prediction": 0.8,
+    "self_claim": 0.99,
+    "enabling_technology": 0.86
+  },
+  "chunks_supporting_all_core_criteria": [],
+  "evidence_chunks_available": 8,
+  "evidence_chunks_sent": 8,
+  "model": "jev-latest"
+}

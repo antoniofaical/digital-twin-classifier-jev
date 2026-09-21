@@ -1,0 +1,20 @@
+{
+  "site_name": "cellgebra",
+  "root_url": "https://www.cellgebra.com/",
+  "created_at": "2026-09-21T16:27:11.610323+00:00",
+  "pages_saved": 1,
+  "urls_visited": 1,
+  "sitemaps_checked": 4,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://www.cellgebra.com/sitemap_index.xml",
+      "error": "400 Client Error: Bad Request for url: https://www.cellgebra.com/sitemap_index.xml"
+    },
+    {
+      "url": "https://www.cellgebra.com/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.cellgebra.com/wp-sitemap.xml"
+    }
+  ]
+}

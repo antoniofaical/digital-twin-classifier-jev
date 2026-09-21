@@ -1,0 +1,24 @@
+{
+  "site_name": "VirtualMan",
+  "root_url": "https://virtualman.ai/",
+  "created_at": "2026-09-21T16:19:58.786201+00:00",
+  "pages_saved": 9,
+  "urls_visited": 9,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://virtualman.ai/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://virtualman.ai/sitemap_index.xml"
+    },
+    {
+      "url": "https://virtualman.ai/sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://virtualman.ai/sitemap.xml"
+    },
+    {
+      "url": "https://virtualman.ai/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://virtualman.ai/wp-sitemap.xml"
+    }
+  ]
+}

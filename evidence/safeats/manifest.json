@@ -1,0 +1,20 @@
+{
+  "site_name": "safeats",
+  "root_url": "https://www.safeats.fr/",
+  "created_at": "2026-09-21T16:23:44.705715+00:00",
+  "pages_saved": 7,
+  "urls_visited": 7,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://www.safeats.fr/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.safeats.fr/wp-sitemap.xml"
+    },
+    {
+      "url": "https://www.safeats.fr/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://www.safeats.fr/sitemap_index.xml"
+    }
+  ]
+}

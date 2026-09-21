@@ -1,0 +1,20 @@
+{
+  "site_name": "removirt",
+  "root_url": "https://www.removirt.es/en/",
+  "created_at": "2026-09-21T16:24:14.932493+00:00",
+  "pages_saved": 3,
+  "urls_visited": 3,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://www.removirt.es/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://www.removirt.es/sitemap_index.xml"
+    },
+    {
+      "url": "https://www.removirt.es/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://www.removirt.es/wp-sitemap.xml"
+    }
+  ]
+}

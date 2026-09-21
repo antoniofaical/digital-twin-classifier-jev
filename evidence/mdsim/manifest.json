@@ -1,0 +1,24 @@
+{
+  "site_name": "mdsim",
+  "root_url": "https://mdsim.net/",
+  "created_at": "2026-09-21T16:38:29.339082+00:00",
+  "pages_saved": 1,
+  "urls_visited": 1,
+  "sitemaps_checked": 3,
+  "remaining_queue": 0,
+  "stopped_by_page_limit": false,
+  "errors": [
+    {
+      "url": "https://mdsim.net/sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://mdsim.net/sitemap.xml"
+    },
+    {
+      "url": "https://mdsim.net/sitemap_index.xml",
+      "error": "404 Client Error: Not Found for url: https://mdsim.net/sitemap_index.xml"
+    },
+    {
+      "url": "https://mdsim.net/wp-sitemap.xml",
+      "error": "404 Client Error: Not Found for url: https://mdsim.net/wp-sitemap.xml"
+    }
+  ]
+}
