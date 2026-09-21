@@ -174,12 +174,17 @@ def scrape_site(
     include_query_urls: bool = False,
     respect_robots: bool = True,
     request_timeout: int = 20,
+    verbose: int = 0,
 ) -> Path:
     """Crawl one site and create evidence/<site_name>/evidence.jsonl."""
     root_url = root_url if re.match(r"^https?://", root_url) else "https://" + root_url
     root_url = canonicalize(root_url, keep_query=include_query_urls)
     site_dir = evidence_root / evidence_directory_name(site_name)
     site_dir.mkdir(parents=True, exist_ok=True)
+
+    def log(level: int, message: str) -> None:
+        if verbose >= level:
+            print(f"[{site_name}] {message}", flush=True)
 
     session = requests.Session()
     session.headers.update({"User-Agent": USER_AGENT})
@@ -194,7 +199,9 @@ def scrape_site(
     }
 
     try:
+        log(2, f"robots GET {robots_url}")
         response = session.get(robots_url, timeout=request_timeout)
+        log(2, f"robots HTTP {response.status_code} {response.url}")
         if response.ok:
             robots.parse(response.text.splitlines())
             sitemap_seeds.update(
@@ -207,6 +214,7 @@ def scrape_site(
     except requests.RequestException as exc:
         robots.parse([])
         errors.append({"url": robots_url, "error": str(exc)})
+        log(2, f"robots ERROR {robots_url}: {exc}")
 
     queue: deque[str] = deque()
     queued: set[str] = set()
@@ -233,9 +241,15 @@ def scrape_site(
             return
         sitemap_seen.add(value)
         try:
+            log(2, f"sitemap GET {value}")
             response = session.get(value, timeout=request_timeout)
             response.raise_for_status()
             kind, locations = sitemap_locations(response.content, response.url)
+            log(
+                2,
+                f"sitemap HTTP {response.status_code} {response.url}; "
+                f"kind={kind}, locations={len(locations)}",
+            )
             if kind == "sitemapindex":
                 for location in locations:
                     read_sitemap(location)
@@ -244,6 +258,7 @@ def scrape_site(
                     enqueue(location)
         except requests.RequestException as exc:
             errors.append({"url": value, "error": str(exc)})
+            log(2, f"sitemap ERROR {value}: {exc}")
 
     for sitemap in sitemap_seeds:
         read_sitemap(sitemap)
@@ -257,11 +272,19 @@ def scrape_site(
             continue
         visited.add(url)
         if respect_robots and not robots.can_fetch(USER_AGENT, url):
+            log(2, f"robots SKIP {url}")
             continue
         try:
+            log(1, f"page {len(visited)} GET {url}")
             response = session.get(url, timeout=request_timeout)
             response.raise_for_status()
             text, links = extract_response(response)
+            log(
+                2,
+                f"page HTTP {response.status_code} {response.url}; "
+                f"type={response.headers.get('content-type', '')!r}, "
+                f"characters={len(text)}, links={len(links)}",
+            )
             pages.append(
                 {
                     "url": response.url,
@@ -272,6 +295,7 @@ def scrape_site(
             )
             for link in links:
                 enqueue(link)
+            log(2, f"queue size={len(queue)} after {response.url}")
         except (
             requests.RequestException,
             OSError,
@@ -279,6 +303,7 @@ def scrape_site(
             ParserRejectedMarkup,
         ) as exc:
             errors.append({"url": url, "error": str(exc)})
+            log(2, f"page ERROR {url}: {exc}")
 
     with (site_dir / "evidence.jsonl").open("w", encoding="utf-8") as output:
         for page in pages:
@@ -298,5 +323,10 @@ def scrape_site(
     (site_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
+    )
+    log(
+        1,
+        f"saved {len(pages)} page(s); visited={len(visited)}, "
+        f"errors={len(errors)}, remaining={len(queue)}",
     )
     return site_dir

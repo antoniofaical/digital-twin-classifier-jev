@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -10,9 +11,21 @@ import orchestrator
 
 
 def _write_evidence(site_dir) -> None:
-    site_dir.mkdir(parents=True)
+    site_dir.mkdir(parents=True, exist_ok=True)
     (site_dir / "evidence.jsonl").write_text(
         json.dumps({"url": "https://example.com/", "text": "evidence"}) + "\n",
+        encoding="utf-8",
+    )
+    (site_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "site_name": site_dir.name,
+                "pages_saved": 1,
+                "stopped_by_page_limit": False,
+                "errors": [],
+            }
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -46,9 +59,10 @@ def test_crawl_mode_never_requires_key_or_calls_classifier(
     monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
     monkeypatch.setattr(orchestrator, "classify_site", fail_classify_site)
 
-    orchestrator.main(["--mode", "crawl"])
+    orchestrator.main(["--mode", "crawl", "-vv"])
 
     assert calls["scraper"]["max_pages"] == 0
+    assert calls["scraper"]["verbose"] == 2
     output = capsys.readouterr().out
     assert "no Jev or DeepL API calls will be made" in output
     assert "1 Jev request(s) would be required" in output
@@ -56,6 +70,13 @@ def test_crawl_mode_never_requires_key_or_calls_classifier(
 
 def test_smoke_mode_preserves_page_and_chunk_limits(tmp_path, monkeypatch) -> None:
     site_dir = tmp_path / "evidence" / "site1"
+    site = {"name": "site1", "url": "https://example.com/"}
+    _write_evidence(site_dir)
+    orchestrator.write_crawl_state(
+        site=site,
+        site_dir=site_dir,
+        scraper_config={**orchestrator.SCRAPER_CONFIG, "max_pages": 0, "verbose": 0},
+    )
     calls: dict[str, Any] = {}
 
     def fake_scrape_site(**kwargs):
@@ -80,6 +101,7 @@ def test_smoke_mode_preserves_page_and_chunk_limits(tmp_path, monkeypatch) -> No
     assert calls["scraper"]["max_pages"] == orchestrator.SMOKE_MAX_PAGES
     assert calls["classifier"]["max_chunks"] == orchestrator.SMOKE_MAX_CHUNKS
     assert calls["classifier"]["api_key"] == "test-secret"
+    assert not (site_dir / orchestrator.CRAWL_STATE_FILENAME).exists()
 
 
 def test_classify_mode_prompts_for_percentage_without_scraping(
@@ -158,6 +180,106 @@ def test_site_intent_selects_only_requested_sites(tmp_path, monkeypatch) -> None
     orchestrator.main(["--mode", "crawl", "--site", "site2"])
 
     assert calls == ["site2"]
+
+
+def test_legacy_artifacts_are_cleaned_without_deleting_unknown_files(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    site_dir = tmp_path / "evidence" / "site1"
+    _write_evidence(site_dir)
+    (site_dir / "classification.json").write_text("{}\n", encoding="utf-8")
+    (site_dir / "user-notes.txt").write_text("keep me\n", encoding="utf-8")
+    calls = 0
+
+    def fake_scrape_site(**kwargs):
+        nonlocal calls
+        del kwargs
+        calls += 1
+        assert not (site_dir / "evidence.jsonl").exists()
+        assert not (site_dir / "manifest.json").exists()
+        assert not (site_dir / "classification.json").exists()
+        assert (site_dir / "user-notes.txt").read_text(encoding="utf-8") == "keep me\n"
+        _write_evidence(site_dir)
+        return site_dir
+
+    _configure_test_site(tmp_path, monkeypatch)
+    monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
+
+    orchestrator.main(["--mode", "crawl"])
+
+    assert calls == 1
+    assert (site_dir / "user-notes.txt").exists()
+    state = json.loads((site_dir / orchestrator.CRAWL_STATE_FILENAME).read_text())
+    assert state["schema_version"] == orchestrator.CRAWL_STATE_VERSION
+    assert state["status"] == "completed"
+    assert "removed stale generated artifacts" in capsys.readouterr().out
+
+
+def test_recent_full_crawl_is_reused_and_force_crawl_bypasses_cache(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    site_dir = tmp_path / "evidence" / "site1"
+    calls = 0
+
+    def fake_scrape_site(**kwargs):
+        nonlocal calls
+        del kwargs
+        calls += 1
+        _write_evidence(site_dir)
+        return site_dir
+
+    _configure_test_site(tmp_path, monkeypatch)
+    monkeypatch.setattr(orchestrator, "scrape_site", fake_scrape_site)
+
+    orchestrator.main(["--mode", "crawl"])
+    orchestrator.main(["--mode", "crawl"])
+    assert calls == 1
+    assert "reusing crawl completed" in capsys.readouterr().out
+
+    orchestrator.main(["--mode", "crawl", "--force-crawl"])
+    assert calls == 2
+
+
+def test_crawl_freshness_uses_only_explicit_state(tmp_path) -> None:
+    site = {"name": "site1", "url": "https://example.com/"}
+    site_dir = tmp_path / "evidence" / "site1"
+    _write_evidence(site_dir)
+    config = {**orchestrator.SCRAPER_CONFIG, "max_pages": 0, "verbose": 0}
+    now = datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
+
+    is_recent, _ = orchestrator.recent_crawl(
+        site=site,
+        site_dir=site_dir,
+        scraper_config=config,
+        max_age_hours=24,
+        now=now,
+    )
+    assert not is_recent
+
+    orchestrator.write_crawl_state(
+        site=site,
+        site_dir=site_dir,
+        scraper_config=config,
+        completed_at=now - timedelta(hours=23),
+    )
+    is_recent, age_hours = orchestrator.recent_crawl(
+        site=site,
+        site_dir=site_dir,
+        scraper_config=config,
+        max_age_hours=24,
+        now=now,
+    )
+    assert is_recent
+    assert age_hours == 23
+
+    is_recent, _ = orchestrator.recent_crawl(
+        site=site,
+        site_dir=site_dir,
+        scraper_config=config,
+        max_age_hours=22,
+        now=now,
+    )
+    assert not is_recent
 
 
 def test_classify_uses_safe_directory_for_display_name(tmp_path, monkeypatch) -> None:
@@ -318,6 +440,7 @@ def test_translation_requires_confirmation_before_api_calls(
 
     def fake_scrape_site(**kwargs):
         calls["scraper"] = kwargs
+        _write_evidence(site_dir)
         return site_dir
 
     def fake_classify_site(**kwargs):
@@ -349,6 +472,7 @@ def test_rejected_translation_confirmation_cancels_all_api_calls(
 
     def fake_scrape_site(**kwargs):
         del kwargs
+        _write_evidence(site_dir)
         return site_dir
 
     def fail_classify_site(**kwargs):

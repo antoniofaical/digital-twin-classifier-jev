@@ -75,7 +75,9 @@ def test_sitemap_index_and_urlset_are_parsed() -> None:
     )
 
 
-def test_scrape_site_creates_isolated_evidence_folder(tmp_path, monkeypatch) -> None:
+def test_scrape_site_creates_isolated_evidence_folder(
+    tmp_path, monkeypatch, capsys
+) -> None:
     root = "https://example.com/"
     sitemap = (
         "<urlset>"
@@ -112,6 +114,7 @@ def test_scrape_site_creates_isolated_evidence_folder(tmp_path, monkeypatch) -> 
         root_url=root,
         evidence_root=tmp_path / "evidence",
         respect_robots=True,
+        verbose=2,
     )
 
     assert site_dir == tmp_path / "evidence" / "site1"
@@ -123,6 +126,11 @@ def test_scrape_site_creates_isolated_evidence_folder(tmp_path, monkeypatch) -> 
     manifest = json.loads((site_dir / "manifest.json").read_text())
     assert manifest["pages_saved"] == 2
     assert not manifest["stopped_by_page_limit"]
+    output = capsys.readouterr().out
+    assert "[site1] robots GET https://example.com/robots.txt" in output
+    assert "[site1] sitemap HTTP 200" in output
+    assert "[site1] page 1 GET" in output
+    assert "characters=" in output
 
 
 def test_language_hint_reads_html_lang_attribute() -> None:
