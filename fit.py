@@ -19,6 +19,7 @@ from fit_engine import (
     load_profile,
     normalize_records,
     profile_questions,
+    question_set_sha256,
 )
 
 JEV_ENDPOINT = "https://api.typesafe.ai/v1/systemone"
@@ -57,6 +58,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--responses",
         type=Path,
         help="score saved Jev response records from JSONL without API calls",
+    )
+    source.add_argument(
+        "--validate-profile",
+        action="store_true",
+        help="validate the profile and exit without reading input or calling APIs",
     )
     parser.add_argument(
         "--name",
@@ -99,6 +105,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.responses is not None and args.responses_output is not None:
         parser.error("--responses-output cannot be used with --responses")
+    if args.validate_profile and args.responses_output is not None:
+        parser.error("--responses-output cannot be used with --validate-profile")
     if args.input == "-" and not args.yes:
         parser.error("--input - requires --yes because stdin contains the scored input")
     return args
@@ -127,7 +135,9 @@ def text_chunks(text: str, chunk_chars: int) -> Iterator[str]:
 
 
 def load_response_records(
-    path: Path, criterion_names: tuple[str, ...]
+    path: Path,
+    criterion_names: tuple[str, ...],
+    expected_question_set_sha256: str | None = None,
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     with path.open(encoding="utf-8") as source:
@@ -141,6 +151,28 @@ def load_response_records(
                     f"Invalid JSON in {path} at line {line_number}: {exc}"
                 ) from exc
             records.append(record)
+    recorded_hashes = {
+        str(record["question_set_sha256"])
+        for record in records
+        if isinstance(record, dict) and record.get("question_set_sha256")
+    }
+    records_with_hash = sum(
+        isinstance(record, dict) and bool(record.get("question_set_sha256"))
+        for record in records
+    )
+    if records_with_hash not in {0, len(records)}:
+        raise ValueError("Saved responses mix versioned and legacy question sets")
+    if len(recorded_hashes) > 1:
+        raise ValueError("Saved responses contain multiple question sets")
+    if (
+        expected_question_set_sha256 is not None
+        and recorded_hashes
+        and recorded_hashes != {expected_question_set_sha256}
+    ):
+        raise ValueError(
+            "Saved responses were created with different profile questions. "
+            "Run live fit scoring again."
+        )
     return normalize_records(records, criterion_names)
 
 
@@ -160,6 +192,7 @@ def query_jev(
         raise ValueError("A Jev API key is required")
     chunks = list(text_chunks(text, chunk_chars))
     questions = profile_questions(profile)
+    questions_sha256 = question_set_sha256(profile)
     records: list[dict[str, Any]] = []
     stream = progress_stream or sys.stderr
     for number, chunk in enumerate(chunks, start=1):
@@ -192,6 +225,9 @@ def query_jev(
             {
                 "request": number,
                 "evidence_unit": f"input_chunk_{number}",
+                "profile_id": profile["id"],
+                "profile_version": profile["version"],
+                "question_set_sha256": questions_sha256,
                 "probabilities": probabilities,
             }
         )
@@ -228,6 +264,14 @@ def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     profile = load_profile(args.profile)
     all_criteria = criterion_ids(profile)
+    questions_sha256 = question_set_sha256(profile)
+
+    if args.validate_profile:
+        print(
+            f"PROFILE VALID: {profile['id']}@{profile['version']} "
+            f"criteria={len(all_criteria)} question_set_sha256={questions_sha256}"
+        )
+        return
 
     if args.responses is not None:
         subject = args.name or args.responses.stem
@@ -235,7 +279,11 @@ def main(argv: list[str] | None = None) -> None:
             "FIT RESCORE: saved Jev responses only; no API calls will be made.",
             file=sys.stderr,
         )
-        records = load_response_records(args.responses, all_criteria)
+        records = load_response_records(
+            args.responses,
+            all_criteria,
+            expected_question_set_sha256=questions_sha256,
+        )
         metadata = {
             "model": args.model,
             "input_chunks_sent": len(records),
