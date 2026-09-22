@@ -5,71 +5,40 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable, Iterator
-from math import ceil, prod
+from math import ceil
 from pathlib import Path
 from typing import Any
 
 import requests
 
+from fit_engine import (
+    aggregate_evidence,
+    build_fit_result,
+    combine_core_scores,
+    criterion_ids,
+    load_profile,
+    profile_questions,
+)
+
 JEV_ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 DEEPL_FREE_ENDPOINT = "https://api-free.deepl.com/v2/translate"
 DEEPL_PRO_ENDPOINT = "https://api.deepl.com/v2/translate"
 
-QUESTIONS = {
-    "specific_counterpart": {
-        "type": "noul",
-        "instructions": (
-            "Does the evidence clearly show a digital representation of one specific, "
-            "identifiable physical or biological counterpart, rather than a generic model?"
-        ),
-    },
-    "individualized_data_link": {
-        "type": "noul",
-        "instructions": (
-            "Does measured data from that specific counterpart initialize or personalize "
-            "its corresponding model?"
-        ),
-    },
-    "repeated_synchronization": {
-        "type": "noul",
-        "instructions": (
-            "Is the virtual representation repeatedly updated with new data from the same "
-            "real-world counterpart?"
-        ),
-    },
-    "simulation_prediction": {
-        "type": "noul",
-        "instructions": (
-            "Does the virtual representation simulate scenarios, predict outcomes, or "
-            "evaluate interventions?"
-        ),
-    },
-    "self_claim": {
-        "type": "noul",
-        "instructions": (
-            "Does the company explicitly call this product or technology a digital twin?"
-        ),
-    },
-    "enabling_technology": {
-        "type": "noul",
-        "instructions": (
-            "Even if a complete digital twin is not evidenced, is this clearly an enabling "
-            "component such as virtual modeling, simulation, sensing, or data integration?"
-        ),
-    },
-}
-
-CORE_CRITERIA = (
-    "specific_counterpart",
-    "individualized_data_link",
-    "repeated_synchronization",
-    "simulation_prediction",
-)
-
-AUXILIARY_CRITERIA = ("self_claim", "enabling_technology")
+DIGITAL_TWIN_PROFILE_PATH = Path(__file__).with_name("profiles") / "digital_twin.json"
+DIGITAL_TWIN_PROFILE = load_profile(DIGITAL_TWIN_PROFILE_PATH)
+QUESTIONS = profile_questions(DIGITAL_TWIN_PROFILE)
+CORE_CRITERIA = criterion_ids(DIGITAL_TWIN_PROFILE, "core")
+AUXILIARY_CRITERIA = criterion_ids(DIGITAL_TWIN_PROFILE, "auxiliary")
 CLASSIFICATION_SCHEMA_VERSION = 2
-TOP_EVIDENCE_WEIGHTS = (0.60, 0.25, 0.15)
-SELF_CLAIM_THRESHOLD = 0.70
+TOP_EVIDENCE_WEIGHTS = tuple(
+    float(weight)
+    for weight in DIGITAL_TWIN_PROFILE["evidence_aggregation"]["top_weights"]
+)
+SELF_CLAIM_THRESHOLD = next(
+    float(criterion["threshold"])
+    for criterion in DIGITAL_TWIN_PROFILE["criteria"]
+    if criterion["id"] == "self_claim"
+)
 
 PRESERVED_RESULT_FIELDS = (
     "evidence_is_partial",
@@ -358,75 +327,32 @@ def load_jev_records(chunk_log: Path) -> list[dict[str, Any]]:
     return records
 
 
-def _evidence_unit_key(record: dict[str, Any], index: int) -> tuple[str, ...]:
-    raw_urls = record.get("urls", [])
-    if not isinstance(raw_urls, list):
-        raw_urls = []
-    urls = tuple(sorted({str(url).strip() for url in raw_urls if str(url).strip()}))
-    if urls:
-        return ("urls", *urls)
-    return ("record", str(record.get("request", index)))
-
-
 def aggregate_criterion_scores(
     records: list[dict[str, Any]],
 ) -> tuple[dict[str, float], dict[str, list[dict[str, Any]]], int]:
     """Aggregate the strongest independent evidence units for every criterion."""
-    if not records:
-        raise ValueError("At least one Jev record is required")
-
-    units: dict[tuple[str, ...], dict[str, dict[str, Any]]] = {}
-    for index, record in enumerate(records, start=1):
-        key = _evidence_unit_key(record, index)
-        unit = units.setdefault(key, {})
-        urls = list(key[1:]) if key[0] == "urls" else []
-        probabilities = record.get("probabilities", {})
-        for criterion in QUESTIONS:
-            probability = float(probabilities[criterion])
-            if not 0 <= probability <= 1:
-                raise ValueError(f"{criterion} probability must be from zero to one")
-            current = unit.get(criterion)
-            if current is None or probability > current["probability"]:
-                unit[criterion] = {
-                    "probability": probability,
-                    "request": record.get("request", index),
-                    "urls": urls,
-                }
-
-    scores: dict[str, float] = {}
-    supporting_evidence: dict[str, list[dict[str, Any]]] = {}
-    for criterion in QUESTIONS:
-        candidates = sorted(
-            (unit[criterion] for unit in units.values()),
-            key=lambda candidate: candidate["probability"],
-            reverse=True,
-        )[: len(TOP_EVIDENCE_WEIGHTS)]
-        weights = TOP_EVIDENCE_WEIGHTS[: len(candidates)]
-        weight_total = sum(weights)
-        scores[criterion] = (
-            sum(
-                candidate["probability"] * weight
-                for candidate, weight in zip(candidates, weights, strict=True)
-            )
-            / weight_total
-        )
-        supporting_evidence[criterion] = [
+    scores, evidence, unit_count = aggregate_evidence(
+        records,
+        criterion_names=tuple(QUESTIONS),
+        top_weights=TOP_EVIDENCE_WEIGHTS,
+        method=DIGITAL_TWIN_PROFILE["evidence_aggregation"]["method"],
+    )
+    compatible_evidence = {
+        criterion: [
             {
-                "score": round(100 * candidate["probability"], 2),
-                "weight": round(weight / weight_total, 6),
-                "request": candidate["request"],
-                "urls": candidate["urls"],
+                **{key: value for key, value in item.items() if key != "sources"},
+                "urls": item["sources"],
             }
-            for candidate, weight in zip(candidates, weights, strict=True)
+            for item in items
         ]
-    return scores, supporting_evidence, len(units)
+        for criterion, items in evidence.items()
+    }
+    return scores, compatible_evidence, unit_count
 
 
 def adherence_score(core_scores: dict[str, float]) -> float:
     """Combine four required criteria, penalizing the weakest link."""
-    values = [core_scores[name] for name in CORE_CRITERIA]
-    geometric_mean = prod(values) ** (1 / len(values))
-    return 0.60 * geometric_mean + 0.40 * min(values)
+    return combine_core_scores(DIGITAL_TWIN_PROFILE, core_scores)
 
 
 def build_adherence_result(
@@ -436,31 +362,37 @@ def build_adherence_result(
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the versioned continuous-score result shared by live and replay runs."""
-    metadata = metadata or {}
-    aggregate, supporting_evidence, evidence_units = aggregate_criterion_scores(records)
-    criterion_scores = {
-        criterion: round(100 * aggregate[criterion], 2) for criterion in CORE_CRITERIA
-    }
-    auxiliary_scores = {
-        criterion: round(100 * aggregate[criterion], 2)
-        for criterion in AUXILIARY_CRITERIA
-    }
-    main_strength = max(CORE_CRITERIA, key=aggregate.__getitem__)
-    main_gap = min(CORE_CRITERIA, key=aggregate.__getitem__)
-
+    generic = build_fit_result(
+        subject=site_name,
+        records=records,
+        profile=DIGITAL_TWIN_PROFILE,
+        metadata=metadata,
+    )
     result: dict[str, Any] = {
         "classification_schema_version": CLASSIFICATION_SCHEMA_VERSION,
         "site_name": site_name,
-        "digital_twin_adherence_score": round(100 * adherence_score(aggregate), 2),
-        "criterion_scores": criterion_scores,
-        "auxiliary_scores": auxiliary_scores,
-        "self_claim": aggregate["self_claim"] >= SELF_CLAIM_THRESHOLD,
-        "main_strength": main_strength,
-        "main_gap": main_gap,
+        "digital_twin_adherence_score": generic["fit_score"],
+        "criterion_scores": generic["criterion_scores"],
+        "auxiliary_scores": generic["auxiliary_scores"],
+        "self_claim": generic["auxiliary_flags"]["self_claim"],
+        "main_strength": generic["main_strength"],
+        "main_gap": generic["main_gap"],
+        "fit_profile": generic["profile"],
     }
+    metadata = metadata or {}
     for field in PRESERVED_RESULT_FIELDS:
         if field in metadata:
             result[field] = metadata[field]
+    criterion_evidence = {
+        criterion: [
+            {
+                **{key: value for key, value in item.items() if key != "sources"},
+                "urls": item["sources"],
+            }
+            for item in items
+        ]
+        for criterion, items in generic["criterion_evidence"].items()
+    }
     result.update(
         {
             "aggregation": {
@@ -468,9 +400,9 @@ def build_adherence_result(
                 "top_evidence_weights": list(TOP_EVIDENCE_WEIGHTS),
                 "core_formula": "100 * (0.60 * geometric_mean + 0.40 * minimum)",
                 "self_claim_threshold": 100 * SELF_CLAIM_THRESHOLD,
-                "evidence_units": evidence_units,
+                "evidence_units": generic["aggregation"]["evidence_units"],
             },
-            "criterion_evidence": supporting_evidence,
+            "criterion_evidence": criterion_evidence,
         }
     )
     return result
