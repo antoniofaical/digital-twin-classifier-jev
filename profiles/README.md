@@ -17,6 +17,9 @@ one score. The input supplies evidence; the profile supplies the target.
 - [`PROFILE_GENERATION_PROMPT.md`](PROFILE_GENERATION_PROMPT.md): canonical
   prompt for converting a demand brief into a profile JSON.
 - [`digital_twin.json`](digital_twin.json): production example.
+- [`gsd_patient_journey_mapping.json`](gsd_patient_journey_mapping.json):
+  production profile for scoring and categorizing solutions that may support
+  the glycogen-storage-disease patient journey.
 
 ## Quick start
 

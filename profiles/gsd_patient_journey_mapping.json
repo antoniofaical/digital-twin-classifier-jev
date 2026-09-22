@@ -1,0 +1,105 @@
+{
+  "profile_schema_version": 1,
+  "id": "gsd_patient_journey_mapping",
+  "version": "1.0.0",
+  "name": "GSD patient-journey solution mapping",
+  "description": "Measures the breadth of evidence that a solution can support education, longitudinal information, or care-journey orchestration for a glycogen storage disease patient journey. Auxiliary criteria provide non-exclusive categories for the de-para mapping.",
+  "instruction": "Judge only operational product capabilities explicitly supported by the supplied evidence. Evaluate functions that could transfer to a glycogen storage disease patient journey even when the product targets another condition, but do not infer configurability, clinical integration, longitudinal use, or disease suitability from healthcare branding, generic content, generic data storage, or planned features. Treat disease-area labels as context rather than proof of capability.",
+  "criteria": [
+    {
+      "id": "health_education_delivery",
+      "role": "core",
+      "weight": 1,
+      "instructions": "Does the evidence show an operational product that delivers structured health or clinical education to at least one defined audience?"
+    },
+    {
+      "id": "longitudinal_patient_information",
+      "role": "core",
+      "weight": 1,
+      "instructions": "Does the evidence show patient-specific health or care information being maintained and made usable across more than one encounter or point in time?"
+    },
+    {
+      "id": "care_journey_orchestration",
+      "role": "core",
+      "weight": 1,
+      "instructions": "Does the evidence show an operational workflow that guides or tracks a patient across multiple steps of care?"
+    },
+    {
+      "id": "patient_caregiver_education",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the product deliver health education specifically to patients or caregivers?"
+    },
+    {
+      "id": "healthcare_professional_education",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the product deliver clinical education or training specifically to healthcare professionals?"
+    },
+    {
+      "id": "clinical_history_record",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the product maintain a patient-level clinical history or personal health record across time?"
+    },
+    {
+      "id": "care_coordination_navigation",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the product coordinate handoffs, referrals, tasks, or next steps among participants in a patient's care?"
+    },
+    {
+      "id": "daily_self_management",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the product help a patient or caregiver carry out and document an ongoing care routine?"
+    },
+    {
+      "id": "monitoring_follow_up",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the product repeatedly collect patient-level status or outcome information for clinical follow-up?"
+    },
+    {
+      "id": "prescription_care_plan_management",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the product create, manage, deliver, or track a patient-specific prescription or care plan?"
+    },
+    {
+      "id": "emergency_transition_support",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the product make essential patient information or care instructions available during an emergency or transition between care settings?"
+    },
+    {
+      "id": "direct_gsd_relevance",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence explicitly state that the product supports glycogen storage disease or people affected by it?"
+    },
+    {
+      "id": "adjacent_rare_metabolic_context",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence explicitly place the product in a rare-disease or inherited-metabolic-disease care context other than glycogen storage disease?"
+    },
+    {
+      "id": "explicit_cross_condition_configurability",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence explicitly show that the product can be configured for different diseases or care pathways?"
+    }
+  ],
+  "evidence_aggregation": {
+    "method": "top_weighted",
+    "top_weights": [
+      0.6,
+      0.25,
+      0.15
+    ]
+  },
+  "score_aggregation": {
+    "method": "weighted_mean"
+  }
+}

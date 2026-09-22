@@ -26,7 +26,11 @@ def test_profile_schema_tracks_runtime_aggregation_methods() -> None:
 
 
 def test_shipped_profiles_and_template_pass_runtime_validation() -> None:
-    for filename in ("digital_twin.json", "profile.template.json"):
+    for filename in (
+        "digital_twin.json",
+        "gsd_patient_journey_mapping.json",
+        "profile.template.json",
+    ):
         profile = fit_engine.load_profile(PROFILES / filename)
         assert fit_engine.question_set_sha256(profile)
 
