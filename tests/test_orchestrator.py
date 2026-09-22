@@ -53,10 +53,53 @@ def _configure_test_site(tmp_path, monkeypatch) -> None:
 
 def _score_result(*, partial: bool = True) -> dict[str, Any]:
     return {
+        "classification_schema_version": orchestrator.CLASSIFICATION_SCHEMA_VERSION,
         "digital_twin_adherence_score": 42.0,
+        "criterion_scores": {
+            "specific_counterpart": 40.0,
+            "individualized_data_link": 30.0,
+            "repeated_synchronization": 20.0,
+            "simulation_prediction": 80.0,
+        },
+        "auxiliary_scores": {
+            "self_claim": 10.0,
+            "enabling_technology": 70.0,
+        },
+        "main_strength": "simulation_prediction",
         "main_gap": "repeated_synchronization",
         "self_claim": False,
         "evidence_is_partial": partial,
+    }
+
+
+def _complete_score_result(
+    *,
+    site_name: str,
+    score: float,
+    gap: str = "repeated_synchronization",
+    partial: bool = False,
+    self_claim: bool = True,
+) -> dict[str, Any]:
+    return {
+        "classification_schema_version": orchestrator.CLASSIFICATION_SCHEMA_VERSION,
+        "site_name": site_name,
+        "digital_twin_adherence_score": score,
+        "criterion_scores": {
+            "specific_counterpart": score,
+            "individualized_data_link": score,
+            "repeated_synchronization": score,
+            "simulation_prediction": score,
+        },
+        "auxiliary_scores": {
+            "self_claim": score,
+            "enabling_technology": score,
+        },
+        "self_claim": self_claim,
+        "evidence_is_partial": partial,
+        "evidence_chunks_available": 2,
+        "evidence_chunks_sent": 2,
+        "main_strength": "simulation_prediction",
+        "main_gap": gap,
     }
 
 
@@ -946,7 +989,91 @@ def test_export_mode_writes_score_sorted_excel_friendly_csv(
     assert [row["site_name"] for row in rows] == ["high", "low"]
     assert rows[0]["digital_twin_adherence_score"] == "90.0"
     assert rows[0]["self_claim"] == "True"
-    assert "rows=2" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "rows=2" in output
+    assert "STATISTICAL OVERVIEW (2 site(s))" in output
+    assert "Overall adherence" in output
+
+
+def test_calculate_score_overview_includes_domains_bands_gaps_and_top_sites() -> None:
+    rows = []
+    for name, score, gap, partial, self_claim in (
+        ("low", 20.0, "specific_counterpart", False, False),
+        ("middle", 40.0, "repeated_synchronization", True, True),
+        ("high", 60.0, "repeated_synchronization", False, True),
+    ):
+        result = _complete_score_result(
+            site_name=name,
+            score=score,
+            gap=gap,
+            partial=partial,
+            self_claim=self_claim,
+        )
+        rows.append(
+            orchestrator.score_result_row(
+                site={"name": name, "url": f"https://{name}.example/"},
+                result=result,
+                source=f"{name}/classification.json",
+            )
+        )
+
+    overview = orchestrator.calculate_score_overview(rows)
+
+    adherence = overview["metrics"]["digital_twin_adherence_score"]
+    assert adherence["mean"] == 40.0
+    assert adherence["median"] == 40.0
+    assert adherence["std_population"] == pytest.approx(16.3299, abs=0.0001)
+    assert adherence["min"] == 20.0
+    assert adherence["max"] == 60.0
+    assert overview["metrics"]["specific_counterpart"]["mean"] == 40.0
+    assert overview["full_evidence"] == 2
+    assert overview["partial_evidence"] == 1
+    assert overview["self_claim_count"] == 2
+    assert [band["count"] for band in overview["bands"]] == [1, 0, 1, 0, 1, 0]
+    assert overview["gaps"][0]["key"] == "repeated_synchronization"
+    assert overview["gaps"][0]["count"] == 2
+    assert [site["site_name"] for site in overview["top_sites"]] == [
+        "high",
+        "middle",
+        "low",
+    ]
+
+
+def test_overview_mode_is_offline_and_summarizes_saved_scores(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    sites = [
+        {"name": "low", "url": "https://low.example/"},
+        {"name": "high", "url": "https://high.example/"},
+    ]
+    for site, score in zip(sites, (20.0, 90.0), strict=True):
+        site_dir = tmp_path / "evidence" / site["name"]
+        site_dir.mkdir(parents=True)
+        (site_dir / "classification.json").write_text(
+            json.dumps(_complete_score_result(site_name=site["name"], score=score))
+            + "\n",
+            encoding="utf-8",
+        )
+
+    def fail_network(**kwargs):
+        del kwargs
+        raise AssertionError("overview mode must be offline")
+
+    monkeypatch.delenv(orchestrator.JEV_API_KEY_ENV, raising=False)
+    monkeypatch.delenv(orchestrator.DEEPL_API_KEY_ENV, raising=False)
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(orchestrator, "SITES", sites)
+    monkeypatch.setattr(orchestrator, "scrape_site", fail_network)
+    monkeypatch.setattr(orchestrator, "classify_site", fail_network)
+
+    orchestrator.main(["--mode", "overview", "--sites", "all"])
+
+    output = capsys.readouterr().out
+    assert "no network or API calls will be made" in output
+    assert "STATISTICAL OVERVIEW (2 site(s))" in output
+    assert "Overall adherence" in output
+    assert "55.00" in output
+    assert "TOP 5 ADHERENCE" in output
 
 
 def test_output_option_is_export_only() -> None:
