@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable, Iterator
-from math import ceil
+from math import ceil, prod
 from pathlib import Path
 from typing import Any
 
@@ -64,6 +64,25 @@ CORE_CRITERIA = (
     "individualized_data_link",
     "repeated_synchronization",
     "simulation_prediction",
+)
+
+AUXILIARY_CRITERIA = ("self_claim", "enabling_technology")
+CLASSIFICATION_SCHEMA_VERSION = 2
+TOP_EVIDENCE_WEIGHTS = (0.60, 0.25, 0.15)
+SELF_CLAIM_THRESHOLD = 0.70
+
+PRESERVED_RESULT_FIELDS = (
+    "evidence_is_partial",
+    "crawl_was_limited",
+    "crawl_limit_reasons",
+    "chunks_were_limited",
+    "evidence_percentage_requested",
+    "sampling_strategy",
+    "source_chunk_numbers",
+    "translation",
+    "evidence_chunks_available",
+    "evidence_chunks_sent",
+    "model",
 )
 
 
@@ -292,26 +311,240 @@ def translate_chunk(
     return {"pages": pages}, records, True
 
 
-def decide(
-    probabilities: dict[str, float],
-    coherent_core_evidence: bool,
-    positive_threshold: float,
-    negative_threshold: float,
-) -> tuple[str, bool | None, bool]:
-    core = [probabilities[name] for name in CORE_CRITERIA]
-    if coherent_core_evidence and all(value >= positive_threshold for value in core):
-        return "verified_digital_twin", True, False
-    if probabilities["self_claim"] >= positive_threshold:
-        return "claimed_digital_twin_unverified", None, True
-    if all(value >= positive_threshold for value in core):
-        return "manual_review_cross_chunk_evidence", None, True
-    if probabilities["enabling_technology"] >= positive_threshold:
-        if probabilities["simulation_prediction"] >= positive_threshold:
-            return "virtual_model_or_biosimulation", False, True
-        return "digital_twin_enabling", False, True
-    if all(value <= negative_threshold for value in core):
-        return "not_digital_twin", False, False
-    return "manual_review", None, True
+def load_jev_records(chunk_log: Path) -> list[dict[str, Any]]:
+    """Load and validate saved Jev responses without making API calls."""
+    if not chunk_log.is_file():
+        raise FileNotFoundError(f"Jev chunk log not found: {chunk_log}")
+
+    records: list[dict[str, Any]] = []
+    with chunk_log.open(encoding="utf-8") as source:
+        for line_number, line in enumerate(source, start=1):
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"Invalid JSON in {chunk_log} at line {line_number}: {exc}"
+                ) from exc
+            if not isinstance(record, dict):
+                raise TypeError(
+                    f"Jev record at line {line_number} must be a JSON object"
+                )
+            probabilities = record.get("probabilities")
+            if not isinstance(probabilities, dict):
+                raise TypeError(
+                    f"Jev record at line {line_number} has no probabilities object"
+                )
+            normalized: dict[str, float] = {}
+            for criterion in QUESTIONS:
+                try:
+                    probability = float(probabilities[criterion])
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise ValueError(
+                        f"Jev record at line {line_number} has an invalid "
+                        f"{criterion} probability"
+                    ) from exc
+                if not 0 <= probability <= 1:
+                    raise ValueError(
+                        f"Jev record at line {line_number} has an out-of-range "
+                        f"{criterion} probability"
+                    )
+                normalized[criterion] = probability
+            records.append({**record, "probabilities": normalized})
+
+    if not records:
+        raise ValueError(f"No Jev records found in {chunk_log}")
+    return records
+
+
+def _evidence_unit_key(record: dict[str, Any], index: int) -> tuple[str, ...]:
+    raw_urls = record.get("urls", [])
+    if not isinstance(raw_urls, list):
+        raw_urls = []
+    urls = tuple(sorted({str(url).strip() for url in raw_urls if str(url).strip()}))
+    if urls:
+        return ("urls", *urls)
+    return ("record", str(record.get("request", index)))
+
+
+def aggregate_criterion_scores(
+    records: list[dict[str, Any]],
+) -> tuple[dict[str, float], dict[str, list[dict[str, Any]]], int]:
+    """Aggregate the strongest independent evidence units for every criterion."""
+    if not records:
+        raise ValueError("At least one Jev record is required")
+
+    units: dict[tuple[str, ...], dict[str, dict[str, Any]]] = {}
+    for index, record in enumerate(records, start=1):
+        key = _evidence_unit_key(record, index)
+        unit = units.setdefault(key, {})
+        urls = list(key[1:]) if key[0] == "urls" else []
+        probabilities = record.get("probabilities", {})
+        for criterion in QUESTIONS:
+            probability = float(probabilities[criterion])
+            if not 0 <= probability <= 1:
+                raise ValueError(f"{criterion} probability must be from zero to one")
+            current = unit.get(criterion)
+            if current is None or probability > current["probability"]:
+                unit[criterion] = {
+                    "probability": probability,
+                    "request": record.get("request", index),
+                    "urls": urls,
+                }
+
+    scores: dict[str, float] = {}
+    supporting_evidence: dict[str, list[dict[str, Any]]] = {}
+    for criterion in QUESTIONS:
+        candidates = sorted(
+            (unit[criterion] for unit in units.values()),
+            key=lambda candidate: candidate["probability"],
+            reverse=True,
+        )[: len(TOP_EVIDENCE_WEIGHTS)]
+        weights = TOP_EVIDENCE_WEIGHTS[: len(candidates)]
+        weight_total = sum(weights)
+        scores[criterion] = (
+            sum(
+                candidate["probability"] * weight
+                for candidate, weight in zip(candidates, weights, strict=True)
+            )
+            / weight_total
+        )
+        supporting_evidence[criterion] = [
+            {
+                "score": round(100 * candidate["probability"], 2),
+                "weight": round(weight / weight_total, 6),
+                "request": candidate["request"],
+                "urls": candidate["urls"],
+            }
+            for candidate, weight in zip(candidates, weights, strict=True)
+        ]
+    return scores, supporting_evidence, len(units)
+
+
+def adherence_score(core_scores: dict[str, float]) -> float:
+    """Combine four required criteria, penalizing the weakest link."""
+    values = [core_scores[name] for name in CORE_CRITERIA]
+    geometric_mean = prod(values) ** (1 / len(values))
+    return 0.60 * geometric_mean + 0.40 * min(values)
+
+
+def build_adherence_result(
+    *,
+    site_name: str,
+    records: list[dict[str, Any]],
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build the versioned continuous-score result shared by live and replay runs."""
+    metadata = metadata or {}
+    aggregate, supporting_evidence, evidence_units = aggregate_criterion_scores(records)
+    criterion_scores = {
+        criterion: round(100 * aggregate[criterion], 2) for criterion in CORE_CRITERIA
+    }
+    auxiliary_scores = {
+        criterion: round(100 * aggregate[criterion], 2)
+        for criterion in AUXILIARY_CRITERIA
+    }
+    main_strength = max(CORE_CRITERIA, key=aggregate.__getitem__)
+    main_gap = min(CORE_CRITERIA, key=aggregate.__getitem__)
+
+    result: dict[str, Any] = {
+        "classification_schema_version": CLASSIFICATION_SCHEMA_VERSION,
+        "site_name": site_name,
+        "digital_twin_adherence_score": round(100 * adherence_score(aggregate), 2),
+        "criterion_scores": criterion_scores,
+        "auxiliary_scores": auxiliary_scores,
+        "self_claim": aggregate["self_claim"] >= SELF_CLAIM_THRESHOLD,
+        "main_strength": main_strength,
+        "main_gap": main_gap,
+    }
+    for field in PRESERVED_RESULT_FIELDS:
+        if field in metadata:
+            result[field] = metadata[field]
+    result.update(
+        {
+            "aggregation": {
+                "method": "top_distinct_evidence_weighted_then_core_bottleneck",
+                "top_evidence_weights": list(TOP_EVIDENCE_WEIGHTS),
+                "core_formula": "100 * (0.60 * geometric_mean + 0.40 * minimum)",
+                "self_claim_threshold": 100 * SELF_CLAIM_THRESHOLD,
+                "evidence_units": evidence_units,
+            },
+            "criterion_evidence": supporting_evidence,
+        }
+    )
+    return result
+
+
+def write_classification_result(evidence_dir: Path, result: dict[str, Any]) -> None:
+    temporary = evidence_dir / ".classification.json.tmp"
+    temporary.write_text(
+        json.dumps(result, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(evidence_dir / "classification.json")
+
+
+def rescore_site(*, site_name: str, evidence_dir: Path) -> dict[str, Any]:
+    """Replace an existing categorical result using saved Jev responses only."""
+    previous_file = evidence_dir / "classification.json"
+    previous: dict[str, Any] = {}
+    if previous_file.is_file():
+        loaded = json.loads(previous_file.read_text(encoding="utf-8"))
+        if not isinstance(loaded, dict):
+            raise TypeError(f"Classification must be a JSON object: {previous_file}")
+        previous = loaded
+
+    records = load_jev_records(evidence_dir / "jev_chunks.jsonl")
+    previous_sent = previous.get("evidence_chunks_sent")
+    if previous_sent is not None and int(previous_sent) != len(records):
+        raise ValueError(
+            "Saved Jev response count does not match the previous classification: "
+            f"responses={len(records)}, classification={previous_sent}"
+        )
+    metadata = {
+        field: previous[field] for field in PRESERVED_RESULT_FIELDS if field in previous
+    }
+    evidence_file = evidence_dir / "evidence.jsonl"
+    available_chunks = (
+        sum(1 for _ in evidence_chunks(evidence_file, 20_000))
+        if evidence_file.is_file()
+        else len(records)
+    )
+    crawl_was_limited = False
+    manifest_file = evidence_dir / "manifest.json"
+    if manifest_file.is_file():
+        manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+        if isinstance(manifest, dict):
+            crawl_was_limited = bool(
+                manifest.get("crawl_limited", manifest.get("stopped_by_page_limit"))
+            )
+    metadata.setdefault(
+        "evidence_is_partial",
+        len(records) < available_chunks or crawl_was_limited,
+    )
+    metadata.setdefault("crawl_was_limited", crawl_was_limited)
+    metadata.setdefault("evidence_chunks_available", available_chunks)
+    metadata.setdefault("evidence_chunks_sent", len(records))
+    metadata.setdefault("model", "jev-latest")
+    if "sampling_strategy" not in metadata:
+        metadata["sampling_strategy"] = records[0].get(
+            "sampling_strategy", "saved_jev_responses"
+        )
+    if "source_chunk_numbers" not in metadata:
+        metadata["source_chunk_numbers"] = [
+            record.get("source_chunk")
+            for record in records
+            if record.get("source_chunk") is not None
+        ]
+
+    result = build_adherence_result(
+        site_name=site_name,
+        records=records,
+        metadata=metadata,
+    )
+    write_classification_result(evidence_dir, result)
+    return result
 
 
 def classify_site(
@@ -326,8 +559,6 @@ def classify_site(
     translation_mode: str = "off",
     translation_target: str = "EN",
     deepl_api_key: str = "",
-    positive_threshold: float = 0.70,
-    negative_threshold: float = 0.30,
     request_timeout: int = 60,
     progress_callback: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
@@ -381,8 +612,7 @@ def classify_site(
             crawl_limit_reasons = ["page_limit"]
 
     evidence_is_partial = chunks_were_limited or crawl_was_limited
-    aggregate = {name: 0.0 for name in QUESTIONS}
-    coherent_chunks: list[int] = []
+    jev_records: list[dict[str, Any]] = []
     chunk_log = evidence_dir / "jev_chunks.jsonl"
     translation_log = evidence_dir / "translations.jsonl"
     translation_requests = 0
@@ -441,72 +671,44 @@ def classify_site(
             probabilities = {
                 name: float(payload["answers"][name]["noul"]) for name in QUESTIONS
             }
-            if all(probabilities[name] >= positive_threshold for name in CORE_CRITERIA):
-                coherent_chunks.append(number)
-            for name, probability in probabilities.items():
-                aggregate[name] = max(aggregate[name], probability)
-            jev_log.write(
-                json.dumps(
-                    {
-                        "request": number,
-                        "source_chunk": source_chunk_numbers[number - 1]
-                        if sampling_strategy != "balanced_across_pages"
-                        else None,
-                        "sampling_strategy": sampling_strategy,
-                        "translation_mode": translation_mode,
-                        "urls": list(
-                            dict.fromkeys(page["url"] for page in chunk["pages"])
-                        ),
-                        "probabilities": probabilities,
-                    },
-                    ensure_ascii=False,
-                )
-                + "\n"
-            )
+            record = {
+                "request": number,
+                "source_chunk": source_chunk_numbers[number - 1]
+                if sampling_strategy != "balanced_across_pages"
+                else None,
+                "sampling_strategy": sampling_strategy,
+                "translation_mode": translation_mode,
+                "urls": list(dict.fromkeys(page["url"] for page in chunk["pages"])),
+                "probabilities": probabilities,
+            }
+            jev_records.append(record)
+            jev_log.write(json.dumps(record, ensure_ascii=False) + "\n")
             if progress_callback is not None:
                 progress_callback("jev")
 
-    classification, is_digital_twin, requires_review = decide(
-        aggregate,
-        coherent_core_evidence=bool(coherent_chunks),
-        positive_threshold=positive_threshold,
-        negative_threshold=negative_threshold,
-    )
-    provisional_classification = classification if evidence_is_partial else None
-    if evidence_is_partial:
-        classification = "partial_evidence_classification"
-        is_digital_twin = None
-        requires_review = True
-
-    result = {
-        "site_name": site_name,
-        "classification": classification,
-        "provisional_classification": provisional_classification,
-        "is_digital_twin": is_digital_twin,
-        "requires_human_review": requires_review,
-        "evidence_is_partial": evidence_is_partial,
-        "crawl_was_limited": crawl_was_limited,
-        "crawl_limit_reasons": crawl_limit_reasons,
-        "chunks_were_limited": chunks_were_limited,
-        "evidence_percentage_requested": evidence_percentage,
-        "sampling_strategy": sampling_strategy,
-        "source_chunk_numbers": source_chunk_numbers,
-        "translation": {
-            "mode": translation_mode,
-            "target_language": translation_target.upper(),
-            "deepl_requests": translation_requests,
-            "translated_page_fragments": translated_pages,
-            "skipped_english_page_fragments": skipped_english_pages,
-            "billed_characters": billed_characters,
+    result = build_adherence_result(
+        site_name=site_name,
+        records=jev_records,
+        metadata={
+            "evidence_is_partial": evidence_is_partial,
+            "crawl_was_limited": crawl_was_limited,
+            "crawl_limit_reasons": crawl_limit_reasons,
+            "chunks_were_limited": chunks_were_limited,
+            "evidence_percentage_requested": evidence_percentage,
+            "sampling_strategy": sampling_strategy,
+            "source_chunk_numbers": source_chunk_numbers,
+            "translation": {
+                "mode": translation_mode,
+                "target_language": translation_target.upper(),
+                "deepl_requests": translation_requests,
+                "translated_page_fragments": translated_pages,
+                "skipped_english_page_fragments": skipped_english_pages,
+                "billed_characters": billed_characters,
+            },
+            "evidence_chunks_available": total_chunks,
+            "evidence_chunks_sent": len(chunks),
+            "model": model,
         },
-        "criterion_probabilities": aggregate,
-        "chunks_supporting_all_core_criteria": coherent_chunks,
-        "evidence_chunks_available": total_chunks,
-        "evidence_chunks_sent": len(chunks),
-        "model": model,
-    }
-    (evidence_dir / "classification.json").write_text(
-        json.dumps(result, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
     )
+    write_classification_result(evidence_dir, result)
     return result

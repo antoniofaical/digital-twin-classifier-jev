@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import io
 import json
 import threading
@@ -48,6 +49,15 @@ def _configure_test_site(tmp_path, monkeypatch) -> None:
         "SITES",
         [{"name": "site1", "url": "https://example.com/"}],
     )
+
+
+def _score_result(*, partial: bool = True) -> dict[str, Any]:
+    return {
+        "digital_twin_adherence_score": 42.0,
+        "main_gap": "repeated_synchronization",
+        "self_claim": False,
+        "evidence_is_partial": partial,
+    }
 
 
 def test_crawl_mode_never_requires_key_or_calls_classifier(
@@ -216,10 +226,7 @@ def test_smoke_mode_preserves_page_and_chunk_limits(tmp_path, monkeypatch) -> No
 
     def fake_classify_site(**kwargs):
         calls["classifier"] = kwargs
-        return {
-            "evidence_is_partial": True,
-            "provisional_classification": "digital_twin_enabling",
-        }
+        return _score_result()
 
     monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "test-secret")
     _configure_test_site(tmp_path, monkeypatch)
@@ -247,10 +254,7 @@ def test_classify_mode_prompts_for_percentage_without_scraping(
 
     def fake_classify_site(**kwargs):
         calls["classifier"] = kwargs
-        return {
-            "evidence_is_partial": True,
-            "provisional_classification": "not_digital_twin",
-        }
+        return _score_result()
 
     monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "test-secret")
     answers = iter(["50", "y"])
@@ -595,10 +599,7 @@ def test_classify_uses_safe_directory_for_display_name(tmp_path, monkeypatch) ->
 
     def fake_classify_site(**kwargs):
         calls["classifier"] = kwargs
-        return {
-            "evidence_is_partial": True,
-            "provisional_classification": "not_digital_twin",
-        }
+        return _score_result()
 
     monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "test-secret")
     monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
@@ -726,10 +727,7 @@ def test_classify_bulk_prompts_once_and_applies_percentage_per_site(
     def fake_classify_site(**kwargs):
         calls[kwargs["site_name"]] = kwargs
         kwargs["progress_callback"]("jev")
-        return {
-            "evidence_is_partial": True,
-            "provisional_classification": "not_digital_twin",
-        }
+        return _score_result()
 
     monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "test-secret")
     monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
@@ -797,10 +795,7 @@ def test_translation_requires_confirmation_before_api_calls(
         calls["classifier"] = kwargs
         kwargs["progress_callback"]("deepl")
         kwargs["progress_callback"]("jev")
-        return {
-            "evidence_is_partial": True,
-            "provisional_classification": "not_digital_twin",
-        }
+        return _score_result()
 
     monkeypatch.setenv(orchestrator.JEV_API_KEY_ENV, "jev-secret")
     monkeypatch.setenv(orchestrator.DEEPL_API_KEY_ENV, "deepl-secret:fx")
@@ -841,3 +836,119 @@ def test_rejected_translation_confirmation_cancels_all_api_calls(
     orchestrator.main(["--mode", "smoke", "--translation", "auto"])
 
     assert "no API calls were made" in capsys.readouterr().out
+
+
+def test_score_mode_replaces_saved_result_without_keys_or_network(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    site_dir = tmp_path / "evidence" / "site1"
+    site_dir.mkdir(parents=True)
+    (site_dir / "classification.json").write_text(
+        json.dumps(
+            {
+                "classification": "manual_review",
+                "evidence_is_partial": False,
+                "evidence_chunks_available": 1,
+                "evidence_chunks_sent": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    probabilities = {
+        "specific_counterpart": 0.90,
+        "individualized_data_link": 0.80,
+        "repeated_synchronization": 0.70,
+        "simulation_prediction": 0.60,
+        "self_claim": 0.95,
+        "enabling_technology": 0.90,
+    }
+    (site_dir / "jev_chunks.jsonl").write_text(
+        json.dumps(
+            {
+                "request": 1,
+                "urls": ["https://example.com/product"],
+                "probabilities": probabilities,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fail_network(**kwargs):
+        del kwargs
+        raise AssertionError("score mode must be offline")
+
+    monkeypatch.delenv(orchestrator.JEV_API_KEY_ENV, raising=False)
+    monkeypatch.delenv(orchestrator.DEEPL_API_KEY_ENV, raising=False)
+    _configure_test_site(tmp_path, monkeypatch)
+    monkeypatch.setattr(orchestrator, "scrape_site", fail_network)
+    monkeypatch.setattr(orchestrator, "classify_site", fail_network)
+
+    orchestrator.main(["--mode", "score", "--workers", "2"])
+
+    result = json.loads((site_dir / "classification.json").read_text())
+    assert result["classification_schema_version"] == 2
+    assert result["self_claim"]
+    assert "classification" not in result
+    output = capsys.readouterr().out
+    assert "no network or API calls will be made" in output
+    assert "selected=1, completed=1, failed=0" in output
+
+
+def test_export_mode_writes_score_sorted_excel_friendly_csv(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    sites = [
+        {"name": "low", "url": "https://low.example/"},
+        {"name": "high", "url": "https://high.example/"},
+    ]
+    for site, score in zip(sites, (25.0, 90.0), strict=True):
+        site_dir = tmp_path / "evidence" / site["name"]
+        site_dir.mkdir(parents=True)
+        result = {
+            "classification_schema_version": 2,
+            "site_name": site["name"],
+            "digital_twin_adherence_score": score,
+            "criterion_scores": {
+                "specific_counterpart": score,
+                "individualized_data_link": score,
+                "repeated_synchronization": score,
+                "simulation_prediction": score,
+            },
+            "auxiliary_scores": {
+                "self_claim": 80.0,
+                "enabling_technology": 75.0,
+            },
+            "self_claim": True,
+            "evidence_is_partial": False,
+            "evidence_chunks_available": 2,
+            "evidence_chunks_sent": 2,
+            "main_strength": "specific_counterpart",
+            "main_gap": "repeated_synchronization",
+        }
+        (site_dir / "classification.json").write_text(
+            json.dumps(result) + "\n",
+            encoding="utf-8",
+        )
+
+    output_file = tmp_path / "reports" / "scores.csv"
+    monkeypatch.delenv(orchestrator.JEV_API_KEY_ENV, raising=False)
+    monkeypatch.setattr(orchestrator, "EVIDENCE_ROOT", tmp_path / "evidence")
+    monkeypatch.setattr(orchestrator, "SITES", sites)
+
+    orchestrator.main(
+        ["--mode", "export", "--sites", "all", "--output", str(output_file)]
+    )
+
+    with output_file.open(encoding="utf-8-sig", newline="") as source:
+        rows = list(csv.DictReader(source))
+    assert [row["site_name"] for row in rows] == ["high", "low"]
+    assert rows[0]["digital_twin_adherence_score"] == "90.0"
+    assert rows[0]["self_claim"] == "True"
+    assert "rows=2" in capsys.readouterr().out
+
+
+def test_output_option_is_export_only() -> None:
+    with pytest.raises(SystemExit):
+        orchestrator.parse_args(["--mode", "score", "--output", "scores.csv"])
