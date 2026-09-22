@@ -30,6 +30,20 @@ def profile_sha256(profile: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def question_set_sha256(profile: dict[str, Any]) -> str:
+    """Return a digest of only the profile fields that affect Jev responses."""
+    canonical = json.dumps(
+        {
+            "instruction": profile["instruction"],
+            "questions": profile_questions(profile),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def load_profile(path: Path) -> dict[str, Any]:
     """Load and validate a fit profile from JSON."""
     payload = json.loads(path.read_text(encoding="utf-8"))

@@ -1,0 +1,34 @@
+{
+  "request_schema_version": 1,
+  "profile_id": "example_fit",
+  "profile_name": "Example fit",
+  "objective": "Rank subjects by how strongly the supplied evidence supports the target construct.",
+  "subject": "Describe the type of entity that will receive a score.",
+  "target_definition": "Define what a score of 100 should mean in observable terms.",
+  "decision_use": "Describe the decision, prioritization, or analysis informed by the score.",
+  "evidence_description": "Describe the documents or text that will be supplied to the scorer.",
+  "evidence_exclusions": [
+    "List claims or signals that must not be treated as functional evidence."
+  ],
+  "required_dimensions": [
+    {
+      "name": "Required capability",
+      "definition": "Describe one necessary and independently observable dimension.",
+      "importance": "required"
+    }
+  ],
+  "optional_signals": [
+    {
+      "name": "Explicit self-claim",
+      "definition": "The subject explicitly claims alignment with the target.",
+      "flag_threshold": 0.7
+    }
+  ],
+  "missing_evidence_policy": "Treat absence of explicit evidence as uncertainty or low support; do not infer capabilities.",
+  "compensation_policy": "State whether strong dimensions may compensate for weak dimensions: additive, balanced, strict, or blended bottleneck.",
+  "languages": ["English"],
+  "known_edge_cases": [
+    "Describe a likely false positive.",
+    "Describe a likely false negative."
+  ]
+}

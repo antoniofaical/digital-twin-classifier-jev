@@ -1,0 +1,33 @@
+{
+  "profile_schema_version": 1,
+  "id": "example_fit",
+  "version": "1.0.0",
+  "name": "Example fit",
+  "description": "Replace this description with the construct measured by the profile.",
+  "instruction": "Judge only capabilities explicitly supported by the supplied evidence. Do not infer missing capabilities from branding or general plausibility.",
+  "criteria": [
+    {
+      "id": "required_capability",
+      "role": "core",
+      "weight": 1.0,
+      "instructions": "Does the evidence explicitly demonstrate the required capability?"
+    },
+    {
+      "id": "operational_readiness",
+      "role": "core",
+      "weight": 1.0,
+      "instructions": "Does the evidence show that the capability is operational rather than only planned?"
+    },
+    {
+      "id": "explicit_self_claim",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the subject explicitly claim alignment with the target?"
+    }
+  ],
+  "evidence_aggregation": {
+    "method": "top_weighted",
+    "top_weights": [0.6, 0.25, 0.15]
+  },
+  "score_aggregation": {"method": "weighted_mean"}
+}

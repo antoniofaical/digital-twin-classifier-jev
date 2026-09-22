@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/antoniofaical/digital-twin-classifier-jev/blob/main/profiles/profile.schema.json",
+  "title": "Fit profile",
+  "description": "Versioned contract for profile-driven Jev fit scoring.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile_schema_version",
+    "id",
+    "version",
+    "name",
+    "instruction",
+    "criteria",
+    "evidence_aggregation",
+    "score_aggregation"
+  ],
+  "properties": {
+    "profile_schema_version": {"const": 1},
+    "id": {"$ref": "#/$defs/identifier"},
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Profile version. Semantic versioning is recommended."
+    },
+    "name": {"type": "string", "minLength": 1},
+    "description": {"type": "string"},
+    "instruction": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Evidence policy sent with every input chunk."
+    },
+    "criteria": {
+      "type": "array",
+      "minItems": 1,
+      "contains": {
+        "type": "object",
+        "properties": {"role": {"const": "core"}},
+        "required": ["role"]
+      },
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/core_criterion"},
+          {"$ref": "#/$defs/auxiliary_criterion"}
+        ]
+      }
+    },
+    "evidence_aggregation": {"$ref": "#/$defs/evidence_aggregation"},
+    "score_aggregation": {
+      "oneOf": [
+        {"$ref": "#/$defs/simple_score_aggregation"},
+        {"$ref": "#/$defs/bottleneck_score_aggregation"}
+      ]
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable snake_case identifier."
+    },
+    "core_criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "instructions"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "role": {"const": "core"},
+        "weight": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 1.0
+        },
+        "instructions": {"type": "string", "minLength": 1}
+      }
+    },
+    "auxiliary_criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "instructions"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "role": {"const": "auxiliary"},
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "instructions": {"type": "string", "minLength": 1}
+      }
+    },
+    "evidence_aggregation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": {"enum": ["top_weighted", "mean", "maximum"]},
+        "top_weights": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "number", "exclusiveMinimum": 0},
+          "default": [1.0]
+        }
+      }
+    },
+    "simple_score_aggregation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": {
+          "enum": ["weighted_mean", "weighted_geometric", "minimum"]
+        }
+      }
+    },
+    "bottleneck_score_aggregation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "properties": {
+        "method": {"const": "weighted_geometric_bottleneck"},
+        "geometric_weight": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0.5
+        },
+        "bottleneck_weight": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0.5
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "geometric_weight": {"exclusiveMinimum": 0}
+          },
+          "required": ["geometric_weight"]
+        },
+        {
+          "properties": {
+            "bottleneck_weight": {"exclusiveMinimum": 0}
+          },
+          "required": ["bottleneck_weight"]
+        },
+        {
+          "not": {
+            "anyOf": [
+              {"required": ["geometric_weight"]},
+              {"required": ["bottleneck_weight"]}
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

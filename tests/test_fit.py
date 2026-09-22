@@ -100,6 +100,9 @@ def test_live_entrypoint_scores_arbitrary_file_and_saves_replay(
     assert calls[0]["json"]["state"]["input"] == "candidate evidence"
     assert "test-secret" not in output_file.read_text(encoding="utf-8")
     assert responses_file.is_file()
+    saved_response = json.loads(responses_file.read_text(encoding="utf-8"))
+    assert saved_response["profile_id"] == "job_fit"
+    assert len(saved_response["question_set_sha256"]) == 64
 
 
 def test_offline_rescore_needs_no_key_or_network(tmp_path, monkeypatch, capsys) -> None:
@@ -168,6 +171,65 @@ def test_stdin_input_requires_noninteractive_approval() -> None:
 
     args = fit.parse_args(["--profile", "profile.json", "--input", "-", "--yes"])
     assert args.input == "-"
+
+
+def test_validate_profile_needs_no_input_key_or_network(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    profile_file = tmp_path / "profile.json"
+    profile_file.write_text(
+        json.dumps(
+            {
+                "profile_schema_version": 1,
+                "id": "simple",
+                "version": "1",
+                "name": "Simple fit",
+                "instruction": "Evaluate fit.",
+                "criteria": [
+                    {
+                        "id": "fit",
+                        "role": "core",
+                        "instructions": "Does it fit?",
+                    }
+                ],
+                "score_aggregation": {"method": "weighted_mean"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fail_post(*args: object, **kwargs: Any) -> None:
+        del args, kwargs
+        raise AssertionError("profile validation must not call Jev")
+
+    monkeypatch.delenv(fit.DEFAULT_API_KEY_ENV, raising=False)
+    monkeypatch.setattr(fit.requests, "post", fail_post)
+
+    fit.main(["--profile", str(profile_file), "--validate-profile"])
+
+    assert "PROFILE VALID: simple@1 criteria=1" in capsys.readouterr().out
+
+
+def test_offline_rescore_rejects_responses_from_changed_questions(tmp_path) -> None:
+    path = tmp_path / "responses.jsonl"
+    path.write_text(
+        json.dumps(
+            {
+                "request": 1,
+                "question_set_sha256": "old-questions",
+                "probabilities": {"fit": 0.5},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="different profile questions"):
+        fit.load_response_records(
+            path,
+            ("fit",),
+            expected_question_set_sha256="new-questions",
+        )
 
 
 def test_read_input_from_stdin() -> None:
