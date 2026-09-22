@@ -5,11 +5,14 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import os
 import shutil
+import statistics
 import sys
 import threading
 import time
+from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -346,14 +349,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=("smoke", "crawl", "classify", "score", "export"),
+        choices=("smoke", "crawl", "classify", "score", "export", "overview"),
         default="smoke",
         help=(
             "smoke: bounded crawl plus one Jev call; "
             "crawl: full crawl with no API calls; "
             "classify: choose a percentage of previously saved evidence; "
             "score: recompute adherence from saved Jev responses; "
-            "export: consolidate scored results into CSV"
+            "export: consolidate scored results into CSV; "
+            "overview: summarize previously scored results"
         ),
     )
     parser.add_argument(
@@ -970,14 +974,91 @@ CSV_FIELDS = (
     "main_gap",
 )
 
+SCORE_METRICS = (
+    ("digital_twin_adherence_score", "Overall adherence", "general"),
+    ("specific_counterpart", "Specific counterpart", "domain"),
+    ("individualized_data_link", "Individualized data link", "domain"),
+    ("repeated_synchronization", "Repeated synchronization", "domain"),
+    ("simulation_prediction", "Simulation / prediction", "domain"),
+    ("self_claim_score", "Self-claim", "auxiliary"),
+    ("enabling_technology_score", "Enabling technology", "auxiliary"),
+)
 
-def export_scores_csv(
+SCORE_BANDS = (
+    ("0-29.99", 0.0, 30.0),
+    ("30-39.99", 30.0, 40.0),
+    ("40-49.99", 40.0, 50.0),
+    ("50-59.99", 50.0, 60.0),
+    ("60-69.99", 60.0, 70.0),
+    ("70-100", 70.0, 100.0000001),
+)
+
+SCORE_LABELS = {key: label for key, label, _group in SCORE_METRICS}
+
+
+def score_result_row(
+    *,
+    site: dict[str, str],
+    result: dict[str, Any],
+    source: str | Path,
+) -> dict[str, Any]:
+    """Flatten and validate one versioned adherence result."""
+    if result.get("classification_schema_version") != CLASSIFICATION_SCHEMA_VERSION:
+        raise ValueError(
+            f"{site['name']} uses an old classification schema in {source}. "
+            "Run --mode score first."
+        )
+    criterion_scores = result.get("criterion_scores")
+    auxiliary_scores = result.get("auxiliary_scores")
+    if not isinstance(criterion_scores, dict) or not isinstance(auxiliary_scores, dict):
+        raise TypeError(f"Incomplete scored classification: {source}")
+    try:
+        return {
+            "site_name": site["name"],
+            "site_url": site["url"],
+            "digital_twin_adherence_score": result["digital_twin_adherence_score"],
+            "specific_counterpart": criterion_scores["specific_counterpart"],
+            "individualized_data_link": criterion_scores["individualized_data_link"],
+            "repeated_synchronization": criterion_scores["repeated_synchronization"],
+            "simulation_prediction": criterion_scores["simulation_prediction"],
+            "self_claim_score": auxiliary_scores["self_claim"],
+            "self_claim": result["self_claim"],
+            "enabling_technology_score": auxiliary_scores["enabling_technology"],
+            "evidence_is_partial": result.get("evidence_is_partial", False),
+            "evidence_chunks_available": result.get("evidence_chunks_available", ""),
+            "evidence_chunks_sent": result.get("evidence_chunks_sent", ""),
+            "main_strength": result["main_strength"],
+            "main_gap": result["main_gap"],
+        }
+    except KeyError as exc:
+        raise ValueError(
+            f"Incomplete scored classification for {site['name']}: missing {exc}"
+        ) from exc
+
+
+def score_rows_from_results(
+    *,
+    sites: list[dict[str, str]],
+    results: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Flatten in-memory score results in configured site order."""
+    return [
+        score_result_row(
+            site=site,
+            result=results[site["name"]],
+            source=f"score result for {site['name']}",
+        )
+        for site in sites
+        if site["name"] in results
+    ]
+
+
+def load_score_rows(
     *,
     sites: list[dict[str, str]],
     site_dirs: dict[str, Path],
-    output_file: Path,
-) -> int:
-    """Write one sortable row per site from versioned adherence results."""
+) -> list[dict[str, Any]]:
+    """Load flattened adherence rows for selected sites."""
     rows: list[dict[str, Any]] = []
     for site in sites:
         classification_file = site_dirs[site["name"]] / "classification.json"
@@ -991,61 +1072,174 @@ def export_scores_csv(
             raise TypeError(
                 f"Classification must be a JSON object: {classification_file}"
             )
-        if result.get("classification_schema_version") != CLASSIFICATION_SCHEMA_VERSION:
-            raise ValueError(
-                f"{site['name']} uses an old classification schema. "
-                "Run --mode score first."
+        rows.append(
+            score_result_row(
+                site=site,
+                result=result,
+                source=classification_file,
             )
-        criterion_scores = result.get("criterion_scores")
-        auxiliary_scores = result.get("auxiliary_scores")
-        if not isinstance(criterion_scores, dict) or not isinstance(
-            auxiliary_scores, dict
-        ):
-            raise TypeError(f"Incomplete scored classification: {classification_file}")
-        try:
-            row = {
-                "site_name": site["name"],
-                "site_url": site["url"],
-                "digital_twin_adherence_score": result["digital_twin_adherence_score"],
-                "specific_counterpart": criterion_scores["specific_counterpart"],
-                "individualized_data_link": criterion_scores[
-                    "individualized_data_link"
-                ],
-                "repeated_synchronization": criterion_scores[
-                    "repeated_synchronization"
-                ],
-                "simulation_prediction": criterion_scores["simulation_prediction"],
-                "self_claim_score": auxiliary_scores["self_claim"],
-                "self_claim": result["self_claim"],
-                "enabling_technology_score": auxiliary_scores["enabling_technology"],
-                "evidence_is_partial": result.get("evidence_is_partial", False),
-                "evidence_chunks_available": result.get(
-                    "evidence_chunks_available", ""
-                ),
-                "evidence_chunks_sent": result.get("evidence_chunks_sent", ""),
-                "main_strength": result["main_strength"],
-                "main_gap": result["main_gap"],
-            }
-        except KeyError as exc:
-            raise ValueError(
-                f"Incomplete scored classification for {site['name']}: missing {exc}"
-            ) from exc
-        rows.append(row)
+        )
+    return rows
 
-    rows.sort(
+
+def _numeric_score(row: dict[str, Any], key: str) -> float:
+    value = row.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{row.get('site_name', '<unknown>')} has non-numeric {key}")
+    score = float(value)
+    if not math.isfinite(score) or not 0.0 <= score <= 100.0:
+        raise ValueError(
+            f"{row.get('site_name', '<unknown>')} has invalid {key}: {value}"
+        )
+    return score
+
+
+def calculate_score_overview(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Calculate descriptive statistics for scored sites."""
+    if not rows:
+        raise ValueError("at least one scored site is required for an overview")
+
+    metrics: dict[str, dict[str, float | int]] = {}
+    for key, _label, _group in SCORE_METRICS:
+        values = [_numeric_score(row, key) for row in rows]
+        metrics[key] = {
+            "count": len(values),
+            "mean": statistics.mean(values),
+            "median": statistics.median(values),
+            "std_population": statistics.pstdev(values),
+            "min": min(values),
+            "max": max(values),
+        }
+
+    adherence = [_numeric_score(row, "digital_twin_adherence_score") for row in rows]
+    bands = []
+    for label, lower, upper in SCORE_BANDS:
+        count = sum(lower <= score < upper for score in adherence)
+        bands.append(
+            {
+                "label": label,
+                "count": count,
+                "percentage": count * 100.0 / len(rows),
+            }
+        )
+
+    gap_counts = Counter(str(row.get("main_gap", "unknown")) for row in rows)
+    gaps = [
+        {
+            "key": key,
+            "label": SCORE_LABELS.get(key, key.replace("_", " ").title()),
+            "count": count,
+            "percentage": count * 100.0 / len(rows),
+        }
+        for key, count in sorted(
+            gap_counts.items(), key=lambda item: (-item[1], item[0])
+        )
+    ]
+    top_sites = sorted(
+        (
+            {
+                "site_name": str(row["site_name"]),
+                "score": _numeric_score(row, "digital_twin_adherence_score"),
+            }
+            for row in rows
+        ),
+        key=lambda item: (-item["score"], item["site_name"].casefold()),
+    )[:5]
+    partial_count = sum(bool(row.get("evidence_is_partial")) for row in rows)
+    self_claim_count = sum(bool(row.get("self_claim")) for row in rows)
+    return {
+        "count": len(rows),
+        "full_evidence": len(rows) - partial_count,
+        "partial_evidence": partial_count,
+        "self_claim_count": self_claim_count,
+        "self_claim_percentage": self_claim_count * 100.0 / len(rows),
+        "metrics": metrics,
+        "bands": bands,
+        "gaps": gaps,
+        "top_sites": top_sites,
+    }
+
+
+def print_score_overview(rows: list[dict[str, Any]]) -> None:
+    """Print a compact terminal overview of scored results."""
+    overview = calculate_score_overview(rows)
+    print()
+    print(f"STATISTICAL OVERVIEW ({overview['count']} site(s))")
+    print(
+        "Evidence: "
+        f"full={overview['full_evidence']}, "
+        f"partial={overview['partial_evidence']} | "
+        f"self-claim=yes {overview['self_claim_count']} "
+        f"({overview['self_claim_percentage']:.1f}%)"
+    )
+    print("SCORES (0-100; population standard deviation)")
+    print(
+        f"{'Metric':<30} {'Mean':>7} {'Median':>7} {'Std(pop)':>9} {'Min':>7} {'Max':>7}"
+    )
+    previous_group: str | None = None
+    for key, label, group in SCORE_METRICS:
+        if group == "general":
+            section_label = "GENERAL"
+        elif group == "domain":
+            section_label = "DOMAINS"
+        else:
+            section_label = "AUXILIARY SIGNALS"
+        if group != previous_group:
+            print(section_label)
+            previous_group = group
+        values = overview["metrics"][key]
+        print(
+            f"{label:<30} {values['mean']:>7.2f} {values['median']:>7.2f} "
+            f"{values['std_population']:>9.2f} {values['min']:>7.2f} "
+            f"{values['max']:>7.2f}"
+        )
+
+    print("ADHERENCE DISTRIBUTION")
+    for band in overview["bands"]:
+        print(
+            f"{band['label']:<12} {band['count']:>4} site(s) "
+            f"({band['percentage']:>5.1f}%)"
+        )
+
+    print("MAIN GAPS")
+    for gap in overview["gaps"]:
+        print(
+            f"{gap['label']:<30} {gap['count']:>4} site(s) ({gap['percentage']:>5.1f}%)"
+        )
+
+    print("TOP 5 ADHERENCE")
+    for position, site in enumerate(overview["top_sites"], start=1):
+        print(f"{position}. {site['site_name']}: {site['score']:.2f}/100")
+
+
+def write_scores_csv(*, rows: list[dict[str, Any]], output_file: Path) -> int:
+    """Write flattened adherence rows sorted from highest to lowest score."""
+    ordered_rows = sorted(
+        rows,
         key=lambda row: (
             -float(row["digital_twin_adherence_score"]),
             str(row["site_name"]).casefold(),
-        )
+        ),
     )
     output_file.parent.mkdir(parents=True, exist_ok=True)
     temporary = output_file.with_name(f".{output_file.name}.tmp")
     with temporary.open("w", encoding="utf-8-sig", newline="") as destination:
         writer = csv.DictWriter(destination, fieldnames=CSV_FIELDS)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(ordered_rows)
     temporary.replace(output_file)
-    return len(rows)
+    return len(ordered_rows)
+
+
+def export_scores_csv(
+    *,
+    sites: list[dict[str, str]],
+    site_dirs: dict[str, Path],
+    output_file: Path,
+) -> int:
+    """Write one sortable row per site from versioned adherence results."""
+    rows = load_score_rows(sites=sites, site_dirs=site_dirs)
+    return write_scores_csv(rows=rows, output_file=output_file)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -1088,6 +1282,14 @@ def main(argv: list[str] | None = None) -> None:
         )
 
     EVIDENCE_ROOT.mkdir(parents=True, exist_ok=True)
+
+    if mode == "overview":
+        print(
+            "OVERVIEW: local scored results only; no network or API calls will be made."
+        )
+        rows = load_score_rows(sites=sites, site_dirs=site_dirs)
+        print_score_overview(rows)
+        return
 
     if mode == "score":
         print(
@@ -1133,6 +1335,8 @@ def main(argv: list[str] | None = None) -> None:
             completed=len(scored),
             errors=score_errors,
         )
+        if scored:
+            print_score_overview(score_rows_from_results(sites=sites, results=scored))
         if score_errors:
             raise BulkExecutionError(
                 f"{len(score_errors)} site(s) failed during score recomputation"
@@ -1142,12 +1346,10 @@ def main(argv: list[str] | None = None) -> None:
     if mode == "export":
         output_file = args.output or DEFAULT_CSV_OUTPUT
         print("CSV EXPORT: local scored results only; no API calls will be made.")
-        exported = export_scores_csv(
-            sites=sites,
-            site_dirs=site_dirs,
-            output_file=output_file,
-        )
+        rows = load_score_rows(sites=sites, site_dirs=site_dirs)
+        exported = write_scores_csv(rows=rows, output_file=output_file)
         print(f"CSV EXPORT COMPLETE: rows={exported}, output={output_file}")
+        print_score_overview(rows)
         return
 
     if args.recover_existing_crawls:
@@ -1492,6 +1694,8 @@ def main(argv: list[str] | None = None) -> None:
         completed=len(results),
         errors=errors,
     )
+    if results:
+        print_score_overview(score_rows_from_results(sites=sites, results=results))
     if errors:
         raise BulkExecutionError(f"{len(errors)} site(s) failed during bulk execution")
 
