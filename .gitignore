@@ -3,4 +3,7 @@ __pycache__/
 .pytest_cache/
 
 # Runtime crawl and classification artifacts.
-evidence/
+/evidence/
+/fit_runs/
+/dist/
+*.egg-info/
