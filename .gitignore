@@ -4,3 +4,6 @@ __pycache__/
 
 # Runtime crawl and classification artifacts.
 evidence/
+fit_runs/
+dist/
+*.egg-info/

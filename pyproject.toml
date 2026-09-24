@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "startup-theme-adherence"
+version = "0.2.0"
+description = "Profile-driven evidence scoring for startup websites"
+requires-python = ">=3.11"
+dependencies = ["requests>=2.31,<3", "beautifulsoup4>=4.12,<5", "jsonschema>=4.21,<5"]
+
+[project.optional-dependencies]
+pdf = ["pypdf>=4,<7"]
+dev = ["pytest>=8,<10", "ruff>=0.7,<1", "pypdf>=4,<7"]
+
+[project.scripts]
+startup-adherence = "startup_adherence.cli:main"
+startup-fit = "startup_adherence.text_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"startup_adherence.profiles" = ["*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88

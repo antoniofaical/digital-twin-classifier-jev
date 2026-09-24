@@ -1,0 +1,54 @@
+{
+  "profile_schema_version": 1,
+  "id": "digital_twin",
+  "version": "1.0.0",
+  "name": "Digital twin adherence",
+  "description": "Measures how strongly the supplied evidence supports the functional characteristics of a digital twin.",
+  "instruction": "Judge only capabilities explicitly supported by the supplied evidence.",
+  "criteria": [
+    {
+      "id": "specific_counterpart",
+      "role": "core",
+      "weight": 1.0,
+      "instructions": "Does the evidence clearly show a digital representation of one specific, identifiable physical or biological counterpart, rather than a generic model?"
+    },
+    {
+      "id": "individualized_data_link",
+      "role": "core",
+      "weight": 1.0,
+      "instructions": "Does measured data from that specific counterpart initialize or personalize its corresponding model?"
+    },
+    {
+      "id": "repeated_synchronization",
+      "role": "core",
+      "weight": 1.0,
+      "instructions": "Is the virtual representation repeatedly updated with new data from the same real-world counterpart?"
+    },
+    {
+      "id": "simulation_prediction",
+      "role": "core",
+      "weight": 1.0,
+      "instructions": "Does the virtual representation simulate scenarios, predict outcomes, or evaluate interventions?"
+    },
+    {
+      "id": "self_claim",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the company explicitly call this product or technology a digital twin?"
+    },
+    {
+      "id": "enabling_technology",
+      "role": "auxiliary",
+      "instructions": "Even if a complete digital twin is not evidenced, is this clearly an enabling component such as virtual modeling, simulation, sensing, or data integration?"
+    }
+  ],
+  "evidence_aggregation": {
+    "method": "top_weighted",
+    "top_weights": [0.6, 0.25, 0.15]
+  },
+  "score_aggregation": {
+    "method": "weighted_geometric_bottleneck",
+    "geometric_weight": 0.6,
+    "bottleneck_weight": 0.4
+  }
+}
