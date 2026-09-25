@@ -35,6 +35,7 @@ from .domain.urls import (
     evidence_directory_name,
     host,
 )
+from .storage import RunStore
 
 DEFAULT_SITES = [{"name": "madidt", "url": "https://madidt.com/"}]
 JEV_API_KEY_ENV = "TYPESAFE_PSN_DIG_TWIN_CLASS"
@@ -102,6 +103,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--api-key-env", default=JEV_API_KEY_ENV)
     parser.add_argument("--model", default="jev-latest")
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--only-missing",
+        action="store_true",
+        help="Classify only sites without a completed run matching the profile questions",
+    )
     parser.add_argument("--yes", "-y", action="store_true")
     parser.add_argument("--no-progress", action="store_true")
     parser.add_argument(
@@ -125,6 +131,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         )
     if args.output is not None and args.mode != "export":
         parser.error("--output requires export mode")
+    if args.only_missing and args.mode != "classify":
+        parser.error("--only-missing requires classify mode")
     return args
 
 
@@ -214,6 +222,16 @@ def approve(message: str) -> bool:
     return sys.stdin.readline().strip().casefold() in {"y", "yes"}
 
 
+def has_completed_run(site_dir: Path, profile: dict[str, Any]) -> bool:
+    try:
+        RunStore(site_dir, profile).current()
+    except FileNotFoundError as exc:
+        if str(exc) == "No completed run with matching profile questions":
+            return False
+        raise
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     profile = (
@@ -238,6 +256,26 @@ def main(argv: list[str] | None = None) -> int:
         site["name"]: args.evidence_root / evidence_directory_name(site["name"])
         for site in sites
     }
+    if args.only_missing:
+        existing, lookup_errors = run_jobs(
+            sites,
+            args.workers,
+            lambda site: has_completed_run(directories[site["name"]], profile),
+            stage="saved_result",
+        )
+        if lookup_errors:
+            print("CLASSIFY NOT STARTED: saved results could not be checked.")
+            return finish_summary(
+                len(sites), 0, lookup_errors, traceback=args.traceback
+            )
+        selected = len(sites)
+        sites = [site for site in sites if not existing[site["name"]]]
+        print(
+            f"CLASSIFY ONLY MISSING: selected={selected}, "
+            f"already_completed={selected - len(sites)}, to_classify={len(sites)}"
+        )
+        if not sites:
+            return 0
     crawl_config = {
         "max_pages": 5 if args.mode == "smoke" else args.max_pages_per_site,
         "max_requests": args.max_requests_per_site,
@@ -459,7 +497,7 @@ def finish_summary(
     for name, error in errors.items():
         if not error.missing_result:
             print(f"[{name}] [{error.stage}] {error.error_type}: {error.message}")
-        if traceback:
+        if traceback and not error.missing_result:
             print(
                 f"[{name}] traceback ({error.stage}):\n{error.traceback_text}",
                 end="" if error.traceback_text.endswith("\n") else "\n",
