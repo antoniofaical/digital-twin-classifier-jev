@@ -199,6 +199,42 @@ def test_export_groups_missing_profile_results_and_does_not_write_csv(
     assert "Traceback" not in output
     assert not destination.exists()
 
+    assert (
+        cli.main(
+            ["--mode", "export", "--traceback", "--output", str(destination), *common]
+        )
+        == 1
+    )
+    assert "Traceback" not in capsys.readouterr().out
+
+
+def test_only_missing_classifies_remaining_sites_without_repeating_paid_calls(
+    tmp_path, monkeypatch, capsys
+):
+    root, sites = _evidence(tmp_path, ("one", "two", "three"))
+    FakeJev.calls = []
+    monkeypatch.setattr(cli, "JevClient", FakeJev)
+    monkeypatch.setenv(cli.JEV_API_KEY_ENV, "test-key")
+    common = ["--sites-file", str(sites), "--evidence-root", str(root)]
+    paid = ["--mode", "classify", "--percentage", "100", "--yes"]
+    assert cli.main([*paid, "--site", "one", *common]) == 0
+    assert cli.main([*paid, "--only-missing", *common]) == 0
+    assert [name for name, _, _ in FakeJev.calls] == ["one", "two", "three"]
+    assert "already_completed=1, to_classify=2" in capsys.readouterr().out
+    assert cli.main([*paid, "--only-missing", *common]) == 0
+    assert "already_completed=3, to_classify=0" in capsys.readouterr().out
+    assert len(FakeJev.calls) == 3
+
+    destination = tmp_path / "scores.csv"
+    assert cli.main(["--mode", "export", "--output", str(destination), *common]) == 0
+    with destination.open(encoding="utf-8-sig", newline="") as stream:
+        assert len(list(csv.DictReader(stream))) == 3
+
+
+def test_only_missing_rejects_other_modes():
+    with pytest.raises(SystemExit, match="2"):
+        cli.parse_args(["--mode", "export", "--only-missing"])
+
 
 def test_jev_failure_reports_stage_cause_and_traceback(tmp_path, monkeypatch, capsys):
     root, sites = _evidence(tmp_path)

@@ -43,6 +43,10 @@ export TYPESAFE_PSN_DIG_TWIN_CLASS='sua-chave'
 startup-adherence --mode classify --sites-file sites.json \
   --profile profiles/digital_twin.json --percentage 25
 
+# Completa apenas os sites sem resultado para as perguntas deste perfil.
+startup-adherence --mode classify --only-missing --sites-file sites.json \
+  --profile profiles/digital_twin.json --percentage 100
+
 # Recalcula com respostas salvas, sem rede ou chave de API.
 startup-adherence --mode score --sites-file sites.json \
   --profile profiles/digital_twin.json
@@ -66,11 +70,16 @@ evidência verificáveis, preservando o horário da coleta; não acessa a rede.
 Falhas de sites são relatadas separadamente e geram código de saída `1`.
 O resumo identifica a etapa (`crawl`, `evidence_plan`, `deepl`, `jev`,
 `classification` ou `saved_result`); `--traceback` exibe a pilha completa e a
-causa de cada falha. A execução com falha também registra `failed_stage` em
+causa das falhas inesperadas. A ausência esperada de resultado é agrupada sem
+repetir tracebacks. A execução com falha também registra `failed_stage` em
 `run.json`. No export, sites sem execução concluída com perguntas compatíveis
 são agrupados como `saved_result`: o resumo mostra os resultados encontrados,
 mas o CSV só é escrito quando todos os sites selecionados têm resultado.
 Selecione um subconjunto com `--site nome` para exportar apenas os concluídos.
+Para obter um CSV completo, classifique os restantes com `--only-missing` e
+depois refaça o export. Essa opção confere as perguntas do perfil antes do
+planejamento e preserva as execuções concluídas; chamadas Jev e DeepL dos sites
+faltantes continuam sujeitas à confirmação e podem gerar custos.
 Durante o crawl, o terminal exibe o início de cada site, requisições a robots,
 sitemaps e páginas, além da conclusão por site e do avanço total do lote.
 Use `-v` para detalhes de respostas e URLs ignoradas; `--no-progress` oculta
