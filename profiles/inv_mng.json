@@ -1,0 +1,135 @@
+{
+  "profile_schema_version": 1,
+  "id": "distributed_perishable_inventory_management",
+  "version": "1.0.0",
+  "name": "Distributed perishable inventory management de-para",
+  "description": "Measures evidence-supported functional fit to managing physical, perishable inventory across distributed point-of-use locations such as hospital pantries. The score prioritizes physical stock visibility, low-touch capture, lot and expiry traceability, movement recording, multi-location control, and replenishment action. Auxiliary criteria preserve context about solution maturity, deployment fit, hardware modality, integrations, and local support without distorting thematic fit.",
+  "instruction": "Evaluate functional de-para to distributed management of physical food and consumable inventories at point-of-use locations such as hospital pantries, not literal use of the terms inventory, hospital, or foodservice. Judge only capabilities explicitly supported by the supplied evidence. Evidence from adjacent sectors may count when the documented workflow is functionally transferable. Do not infer item- or lot-level traceability, expiry control, automatic capture, multi-location operation, interoperability, deployment scale, Brazilian support, or current availability from branding, generic AI, IoT, ERP, or sector claims. Distinguish observation of physical on-hand stock from financial inventory valuation, theoretical recipe depletion, procurement records, or demand forecasts alone. Missing evidence means unsupported, not false.",
+  "criteria": [
+    {
+      "id": "physical_inventory_state",
+      "role": "core",
+      "weight": 2.0,
+      "instructions": "Does the evidence demonstrate maintaining the current on-hand quantity or presence of physical stock at a defined storage location?"
+    },
+    {
+      "id": "stock_movement_capture",
+      "role": "core",
+      "weight": 1.5,
+      "instructions": "Does the evidence demonstrate recording a stock-changing event such as receipt, issue, consumption, transfer, return, adjustment, or discard?"
+    },
+    {
+      "id": "low_touch_inventory_capture",
+      "role": "core",
+      "weight": 2.0,
+      "instructions": "Does the evidence demonstrate capturing physical stock or stock-changing events through barcode, QR, RFID, sensors, computer vision, weighing, smart storage, or direct system integration instead of relying only on visual count or manual transcription?"
+    },
+    {
+      "id": "multi_location_control",
+      "role": "core",
+      "weight": 1.25,
+      "instructions": "Does the evidence demonstrate managing distinct stock balances across multiple operational locations?"
+    },
+    {
+      "id": "lot_expiry_traceability",
+      "role": "core",
+      "weight": 2.0,
+      "instructions": "Does the evidence demonstrate associating stocked goods with a lot or batch, an expiry or use-by date, remaining shelf life, or FEFO rotation?"
+    },
+    {
+      "id": "replenishment_action",
+      "role": "core",
+      "weight": 1.25,
+      "instructions": "Does the evidence demonstrate generating or executing replenishment, transfer, or purchasing actions from current stock, par or min-max levels, or demand?"
+    },
+    {
+      "id": "operational_solution_evidence",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence show that the relevant capability is currently available in an operational product or service rather than only proposed, planned, or described generically?"
+    },
+    {
+      "id": "item_container_identity",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence demonstrate identifying a specific item, container, pack, tray, bin, or lot rather than only an aggregate category or financial value?"
+    },
+    {
+      "id": "point_of_use_stockroom_context",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence demonstrate use in small point-of-use storage areas such as pantries, cupboards, ward stores, floor stockrooms, or similar decentralized stockpoints?"
+    },
+    {
+      "id": "hospital_foodservice_context",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence explicitly show use for food, beverage, nutrition, or kitchen inventory in a hospital or healthcare institution?"
+    },
+    {
+      "id": "institutional_foodservice_context",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence explicitly show use in institutional or multi-unit foodservice outside healthcare?"
+    },
+    {
+      "id": "adjacent_transferable_inventory_context",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence explicitly show a transferable physical-inventory workflow in pharmacy, laboratories, healthcare supplies, grocery, hospitality, vending, micro-markets, or another adjacent operational setting?"
+    },
+    {
+      "id": "human_scan_capture",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence demonstrate inventory capture performed by a person scanning a barcode, QR code, RFID tag, or equivalent identifier?"
+    },
+    {
+      "id": "passive_automatic_capture",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence demonstrate inventory capture without a person scanning each event, using sensors, RFID portals, computer vision, smart shelves, connected cabinets, or weighing devices?"
+    },
+    {
+      "id": "cold_chain_condition_monitoring",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence demonstrate monitoring temperature or another storage condition for stocked goods?"
+    },
+    {
+      "id": "erp_procurement_integration",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence demonstrate an implemented integration with an ERP, procurement, purchasing, point-of-sale, or enterprise inventory system?"
+    },
+    {
+      "id": "brazil_portuguese_support",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence explicitly show Brazilian operations, a Brazilian implementation partner, or customer-facing product and support available in Portuguese?"
+    },
+    {
+      "id": "small_multi_location_deployment_evidence",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence show deployment across multiple small operational stockpoints rather than only one central warehouse or one large facility?"
+    },
+    {
+      "id": "managed_inventory_service_model",
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the evidence demonstrate a managed inventory, vendor-managed inventory, inventory-as-a-service, or outsourced replenishment model?"
+    }
+  ],
+  "evidence_aggregation": {
+    "method": "top_weighted",
+    "top_weights": [
+      0.6,
+      0.25,
+      0.15
+    ]
+  },
+  "score_aggregation": {
+    "method": "weighted_mean"
+  }
+}
