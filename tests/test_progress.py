@@ -5,6 +5,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from io import StringIO
 
+from startup_adherence import progress
 from startup_adherence.progress import ProgressReporter
 
 
@@ -14,8 +15,9 @@ class Terminal(StringIO):
 
 
 def test_interactive_stage_colors_and_concurrent_updates(monkeypatch):
-    monkeypatch.delenv("NO_COLOR", raising=False)
-    monkeypatch.setenv("TERM", "xterm")
+    # A StringIO pretending to be a terminal has no Windows console handle.
+    # Test the renderer with color enabled independently of console detection.
+    monkeypatch.setattr(progress, "_terminal_color", lambda stream: True)
     stream = Terminal()
     reporter = ProgressReporter(stream=stream)
     reporter.begin("jev", 20)
@@ -30,6 +32,16 @@ def test_interactive_stage_colors_and_concurrent_updates(monkeypatch):
     assert "\x1b[33m" in output
     assert "\x1b[35m" in output
     assert "\x1b[32m" in output
+
+
+def test_interactive_no_color_uses_plain_carriage_returns(monkeypatch):
+    monkeypatch.setenv("NO_COLOR", "1")
+    stream = Terminal()
+    reporter = ProgressReporter(stream=stream)
+    reporter.begin("jev", 1)
+    reporter.advance("jev")
+    assert "\rJEV PROGRESS: 1/1" in stream.getvalue()
+    assert "\x1b[" not in stream.getvalue()
 
 
 def test_redirected_output_is_plain_and_no_progress_is_silent():
