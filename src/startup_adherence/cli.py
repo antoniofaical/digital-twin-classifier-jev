@@ -22,6 +22,7 @@ from .application.classification import (
 )
 from .application.crawl import scrape_site
 from .application.crawl_state import recent_crawl, recover, write_state
+from .application.failures import JobFailure
 from .application.reporting import export_csv, print_overview, rows_for_results
 from .domain.profile import load_profile, validate_profile
 from .domain.urls import (
@@ -103,6 +104,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--yes", "-y", action="store_true")
     parser.add_argument("--no-progress", action="store_true")
+    parser.add_argument(
+        "--traceback",
+        action="store_true",
+        help="Show a full traceback for each failed site",
+    )
     parser.add_argument("-v", "--verbose", action="count", default=0)
     args = parser.parse_args(argv)
     if args.workers < 1:
@@ -179,10 +185,12 @@ def run_jobs(
     workers: int,
     operation: Callable[[dict[str, str]], T],
     progress: Callable[[str, int, int, bool], None] | None = None,
-) -> tuple[dict[str, T], dict[str, str]]:
+    *,
+    stage: str,
+) -> tuple[dict[str, T], dict[str, JobFailure]]:
     """Preserve unrelated site results if one site fails."""
     results: dict[str, T] = {}
-    errors: dict[str, str] = {}
+    errors: dict[str, JobFailure] = {}
     with ThreadPoolExecutor(max_workers=min(workers, max(len(sites), 1))) as executor:
         futures = {executor.submit(operation, site): site for site in sites}
         for future in as_completed(futures):
@@ -190,7 +198,7 @@ def run_jobs(
             try:
                 results[site["name"]] = future.result()
             except Exception as exc:  # noqa: BLE001 - each site must fail independently
-                errors[site["name"]] = f"{type(exc).__name__}: {exc}"
+                errors[site["name"]] = JobFailure.from_exception(exc, stage)
             if progress is not None:
                 progress(
                     site["name"],
@@ -256,7 +264,12 @@ def main(argv: list[str] | None = None) -> int:
             if args.mode == "score"
             else (lambda site: current_result(directories[site["name"]], profile))
         )
-        results, errors = run_jobs(sites, args.workers, action)
+        results, errors = run_jobs(
+            sites,
+            args.workers,
+            action,
+            stage="scoring" if args.mode == "score" else "saved_result",
+        )
         rows = rows_for_results(sites, results, profile)
         if rows:
             print_overview(rows, profile)
@@ -264,7 +277,13 @@ def main(argv: list[str] | None = None) -> int:
             destination = args.output or Path(f"{profile['id']}_scores.csv")
             count = export_csv(rows, profile, destination)
             print(f"CSV EXPORT COMPLETE: rows={count}, output={destination}")
-        return finish_summary(len(sites), len(results), errors)
+        elif args.mode == "export":
+            print(
+                "CSV EXPORT NOT WRITTEN: selected sites have missing or invalid results."
+            )
+        return finish_summary(
+            len(sites), len(results), errors, traceback=args.traceback
+        )
 
     if args.recover_existing_crawls:
         print("CRAWL RECOVERY: local artifacts only; no network or API calls.")
@@ -272,10 +291,13 @@ def main(argv: list[str] | None = None) -> int:
             sites,
             args.workers,
             lambda site: recover(site, directories[site["name"]], crawl_config, 20_000),
+            stage="crawl_recovery",
         )
         for name, value in results.items():
             print(f"[{name}] {value}")
-        return finish_summary(len(sites), len(results), errors)
+        return finish_summary(
+            len(sites), len(results), errors, traceback=args.traceback
+        )
 
     if args.mode in {"smoke", "crawl"}:
         print(
@@ -320,20 +342,26 @@ def main(argv: list[str] | None = None) -> int:
                     flush=True,
                 )
             ),
+            stage="crawl",
         )
         if args.mode == "crawl":
             return finish_summary(
-                len(sites), len(sites) - len(crawl_errors), crawl_errors
+                len(sites),
+                len(sites) - len(crawl_errors),
+                crawl_errors,
+                traceback=args.traceback,
             )
         sites = [site for site in sites if site["name"] not in crawl_errors]
         if not sites:
-            return finish_summary(len(crawl_errors), 0, crawl_errors)
+            return finish_summary(
+                len(crawl_errors), 0, crawl_errors, traceback=args.traceback
+            )
     else:
         crawl_errors = {}
 
     if args.mode == "classify" and args.percentage == 0:
         print("Bulk classification cancelled; no API calls were made.")
-        return finish_summary(len(sites), 0, crawl_errors)
+        return finish_summary(len(sites), 0, crawl_errors, traceback=args.traceback)
 
     percentage = args.percentage
     if args.mode == "classify" and percentage is None:
@@ -343,7 +371,7 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("Percentage must be at most 100")
         if percentage == 0:
             print("Bulk classification cancelled; no API calls were made.")
-            return finish_summary(len(sites), 0, crawl_errors)
+            return finish_summary(len(sites), 0, crawl_errors, traceback=args.traceback)
 
     plans, plan_errors = run_jobs(
         sites,
@@ -354,6 +382,7 @@ def main(argv: list[str] | None = None) -> int:
             max_chunks=1 if args.mode == "smoke" else 0,
             translation=args.translation,
         ),
+        stage="evidence_plan",
     )
     total_jev = sum(plan.jev_requests for plan in plans.values())
     total_deepl = sum(plan.deepl_requests for plan in plans.values())
@@ -362,10 +391,14 @@ def main(argv: list[str] | None = None) -> int:
         f"BULK PLAN: sites={len(plans)}, Jev requests={total_jev}, DeepL requests={total_deepl}, DeepL characters={total_chars}"
     )
     if not plans:
-        return finish_summary(len(sites), 0, {**crawl_errors, **plan_errors})
+        return finish_summary(
+            len(sites), 0, {**crawl_errors, **plan_errors}, traceback=args.traceback
+        )
     if not args.yes and not approve("Paid API calls are planned."):
         print("Cancelled; no paid API calls were made.")
-        return finish_summary(len(sites), 0, {**crawl_errors, **plan_errors})
+        return finish_summary(
+            len(sites), 0, {**crawl_errors, **plan_errors}, traceback=args.traceback
+        )
     api_key = os.getenv(args.api_key_env, "")
     deepl_key = os.getenv(DEEPL_API_KEY_ENV, "")
     if not api_key or (total_deepl and not deepl_key):
@@ -396,20 +429,39 @@ def main(argv: list[str] | None = None) -> int:
         return result
 
     ready = [site for site in sites if site["name"] in plans]
-    results, errors = run_jobs(ready, args.workers, classify)
+    results, errors = run_jobs(ready, args.workers, classify, stage="classification")
     if results:
         print_overview(rows_for_results(ready, results, profile), profile)
     return finish_summary(
         len(sites) + len(crawl_errors),
         len(results),
         {**crawl_errors, **plan_errors, **errors},
+        traceback=args.traceback,
     )
 
 
-def finish_summary(selected: int, completed: int, errors: dict[str, str]) -> int:
+def finish_summary(
+    selected: int,
+    completed: int,
+    errors: dict[str, JobFailure],
+    *,
+    traceback: bool = False,
+) -> int:
     print(
         f"BULK SUMMARY: selected={selected}, completed={completed}, failed={len(errors)}"
     )
+    missing = [name for name, error in errors.items() if error.missing_result]
+    if missing:
+        print(
+            f"[saved_result] {len(missing)} site(s) without a completed run "
+            "matching this profile's questions: " + ", ".join(missing)
+        )
     for name, error in errors.items():
-        print(f"[{name}] failed: {error}")
+        if not error.missing_result:
+            print(f"[{name}] [{error.stage}] {error.error_type}: {error.message}")
+        if traceback:
+            print(
+                f"[{name}] traceback ({error.stage}):\n{error.traceback_text}",
+                end="" if error.traceback_text.endswith("\n") else "\n",
+            )
     return 1 if errors else 0

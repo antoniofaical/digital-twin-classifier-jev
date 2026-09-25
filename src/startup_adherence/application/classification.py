@@ -27,6 +27,7 @@ from ..storage import (
     timestamp,
     write_json,
 )
+from .failures import StageError
 
 
 @dataclass(frozen=True)
@@ -136,13 +137,16 @@ def classify_saved(
         for number, original in enumerate(plan.chunks, 1):
             chunk = original
             if translation != "off":
-                chunk, translations, used = translator(
-                    chunk,
-                    api_key=deepl_key,
-                    mode=translation,
-                    target_language=target_language,
-                    request_timeout=timeout,
-                )
+                try:
+                    chunk, translations, used = translator(
+                        chunk,
+                        api_key=deepl_key,
+                        mode=translation,
+                        target_language=target_language,
+                        request_timeout=timeout,
+                    )
+                except Exception as exc:
+                    raise StageError("deepl", exc) from exc
                 for item in translations:
                     append_jsonl(
                         directory / "translations.jsonl",
@@ -154,12 +158,15 @@ def classify_saved(
                     billed += int(item.get("billed_characters", 0))
                 if used and progress:
                     progress("deepl")
-            probabilities, raw = jev_client.evaluate(
-                subject=site_name,
-                pages=chunk["pages"],
-                profile=profile,
-                model=model,
-            )
+            try:
+                probabilities, raw = jev_client.evaluate(
+                    subject=site_name,
+                    pages=chunk["pages"],
+                    profile=profile,
+                    model=model,
+                )
+            except Exception as exc:
+                raise StageError("jev", exc) from exc
             record = {
                 "request": number,
                 "source_chunk": None
@@ -228,7 +235,10 @@ def classify_saved(
         return result
     except Exception as exc:
         state.update(
-            status="failed", failed_at=timestamp(), error=f"{type(exc).__name__}: {exc}"
+            status="failed",
+            failed_at=timestamp(),
+            failed_stage=exc.stage if isinstance(exc, StageError) else "classification",
+            error=f"{type(exc).__name__}: {exc}",
         )
         write_json(directory / "run.json", state)
         raise
