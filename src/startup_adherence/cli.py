@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from importlib.resources import files
 from pathlib import Path
 from typing import Any, TypeVar
+from urllib.parse import urlparse
 
 from .adapters.jev import JevClient
 from .application.classification import (
@@ -29,7 +30,9 @@ from .domain.urls import (
     DEFAULT_MAX_QUEUE_SIZE,
     DEFAULT_MAX_REQUESTS,
     DEFAULT_MAX_SITEMAPS,
+    canonicalize,
     evidence_directory_name,
+    host,
 )
 
 DEFAULT_SITES = [{"name": "madidt", "url": "https://madidt.com/"}]
@@ -124,8 +127,11 @@ def select_sites(
 ) -> list[dict[str, str]]:
     if not isinstance(configured, list):
         raise TypeError("Sites file must contain a JSON list")
-    seen_names: set[str] = set()
-    seen_directories: set[str] = set()
+    unique: list[dict[str, str]] = []
+    by_name: dict[str, dict[str, str]] = {}
+    by_url: dict[tuple[str, int | None, str], dict[str, str]] = {}
+    by_directory: dict[str, dict[str, str]] = {}
+    skipped = 0
     for site in configured:
         if (
             not isinstance(site, dict)
@@ -135,19 +141,37 @@ def select_sites(
             or not site["url"]
         ):
             raise ValueError("Each site needs name and URL")
-        if site["name"] in seen_names:
-            raise ValueError(f"Duplicate site name: {site['name']}")
+        url = canonicalize(site["url"], keep_query=False)
+        if not url:
+            raise ValueError(f"Invalid site URL for {site['name']}: {site['url']}")
+        parsed = urlparse(url)
+        # Crawls ignore query strings; www, scheme and trailing slash variants
+        # refer to the same site input for this batch.
+        url_key = (host(url), parsed.port, parsed.path.rstrip("/") or "/")
         directory = evidence_directory_name(site["name"]).casefold()
-        if directory in seen_directories:
+        original = by_name.get(site["name"]) or by_url.get(url_key)
+        if original is not None:
+            by_name[site["name"]] = original
+            skipped += 1
+            continue
+        if directory in by_directory:
             raise ValueError("Site names collide on disk")
-        seen_names.add(site["name"])
-        seen_directories.add(directory)
+        by_name[site["name"]] = site
+        by_url[url_key] = site
+        by_directory[directory] = site
+        unique.append(site)
+    if skipped:
+        print(
+            f"Skipped {skipped} duplicate site entries (first occurrence kept).",
+            file=sys.stderr,
+        )
     if not names or names == ["all"]:
-        return configured
-    unknown = set(names) - seen_names
+        return unique
+    unknown = set(names) - by_name.keys()
     if unknown:
         raise ValueError(f"Unknown sites: {', '.join(sorted(unknown))}")
-    return [site for site in configured if site["name"] in names]
+    selected = {by_name[name]["name"] for name in names}
+    return [site for site in unique if site["name"] in selected]
 
 
 def run_jobs(
