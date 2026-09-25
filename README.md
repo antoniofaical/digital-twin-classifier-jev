@@ -83,7 +83,13 @@ faltantes continuam sujeitas à confirmação e podem gerar custos.
 Durante o crawl, o terminal exibe o início de cada site, requisições a robots,
 sitemaps e páginas, além da conclusão por site e do avanço total do lote.
 Use `-v` para detalhes de respostas e URLs ignoradas; `--no-progress` oculta
-as mensagens de progresso.
+as mensagens de progresso. Barras coloridas indicam a etapa atual: crawl e
+recuperação (ciano), planejamento (azul), tradução DeepL (magenta), chamadas
+Jev (amarelo), classificação, pontuação, overview e exportação (verde). A barra
+acompanha sites nas etapas em lote e requisições nas etapas DeepL/Jev. Em logs
+redirecionados, são impressas linhas simples sem sequências ANSI; `NO_COLOR`
+desativa cores. `startup-fit` exibe o progresso em stderr para manter a saída
+JSON de stdout utilizável.
 
 ## Avaliação de texto
 

@@ -8,6 +8,7 @@ import os
 import sys
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import partial
 from importlib.resources import files
 from pathlib import Path
 from typing import Any, TypeVar
@@ -15,14 +16,14 @@ from urllib.parse import urlparse
 
 from .adapters.jev import JevClient
 from .application.classification import (
-    classify_saved,
     current_result,
     plan_classification,
     replay,
 )
 from .application.crawl import scrape_site
-from .application.crawl_state import recent_crawl, recover, write_state
+from .application.crawl_state import recover, write_state
 from .application.failures import JobFailure
+from .application.jobs import ClassificationJob, CrawlJob
 from .application.reporting import export_csv, print_overview, rows_for_results
 from .domain.profile import load_profile, validate_profile
 from .domain.urls import (
@@ -35,6 +36,7 @@ from .domain.urls import (
     evidence_directory_name,
     host,
 )
+from .progress import ProgressReporter
 from .storage import RunStore
 
 DEFAULT_SITES = [{"name": "madidt", "url": "https://madidt.com/"}]
@@ -217,6 +219,27 @@ def run_jobs(
     return results, errors
 
 
+def run_stage(
+    sites: list[dict[str, str]],
+    workers: int,
+    operation: Callable[[dict[str, str]], T],
+    *,
+    stage: str,
+    reporter: ProgressReporter,
+) -> tuple[dict[str, T], dict[str, JobFailure]]:
+    reporter.begin(stage, len(sites))
+    try:
+        return run_jobs(
+            sites,
+            workers,
+            operation,
+            progress=partial(reporter.on_batch, stage),
+            stage=stage,
+        )
+    finally:
+        reporter.finish()
+
+
 def approve(message: str) -> bool:
     print(f"{message} Continue? [y/N] ", end="", file=sys.stderr, flush=True)
     return sys.stdin.readline().strip().casefold() in {"y", "yes"}
@@ -232,8 +255,186 @@ def has_completed_run(site_dir: Path, profile: dict[str, Any]) -> bool:
     return True
 
 
+def run_offline_mode(
+    args: argparse.Namespace,
+    sites: list[dict[str, str]],
+    directories: dict[str, Path],
+    profile: dict[str, Any],
+    reporter: ProgressReporter,
+) -> int:
+    print(
+        f"{args.mode.upper()}: local saved responses only; no API calls will be made."
+    )
+    action = (
+        (
+            lambda site: replay(
+                site_name=site["name"],
+                site_dir=directories[site["name"]],
+                profile=profile,
+            )
+        )
+        if args.mode == "score"
+        else (lambda site: current_result(directories[site["name"]], profile))
+    )
+    stage = "scoring" if args.mode == "score" else "saved_result"
+    results, errors = run_stage(
+        sites, args.workers, action, stage=stage, reporter=reporter
+    )
+    rows = rows_for_results(sites, results, profile)
+    if rows:
+        reporter.begin("overview", 1)
+        reporter.finish()
+        print_overview(rows, profile)
+        reporter.advance("overview")
+        reporter.finish()
+    if args.mode == "export" and not errors:
+        destination = args.output or Path(f"{profile['id']}_scores.csv")
+        reporter.begin("export", 1)
+        count = export_csv(rows, profile, destination)
+        reporter.advance("export")
+        reporter.finish()
+        print(f"CSV EXPORT COMPLETE: rows={count}, output={destination}")
+    elif args.mode == "export":
+        print("CSV EXPORT NOT WRITTEN: selected sites have missing or invalid results.")
+    return finish_summary(len(sites), len(results), errors, traceback=args.traceback)
+
+
+def run_crawl_mode(
+    args: argparse.Namespace,
+    sites: list[dict[str, str]],
+    directories: dict[str, Path],
+    crawl_config: dict[str, Any],
+    reporter: ProgressReporter,
+) -> dict[str, JobFailure]:
+    print(
+        "CRAWL: website requests; no Jev or DeepL calls during this stage.", flush=True
+    )
+    job = CrawlJob(
+        evidence_root=args.evidence_root,
+        directories=directories,
+        config=crawl_config,
+        reuse=args.mode == "crawl" and not args.force_crawl,
+        max_age_hours=args.crawl_max_age_hours,
+        verbose=-1 if args.no_progress else max(1, args.verbose + 1),
+        scraper=scrape_site,
+        state_writer=write_state,
+        message=None if args.no_progress else reporter.message,
+    )
+    _, errors = run_stage(sites, args.workers, job, stage="crawl", reporter=reporter)
+    return errors
+
+
+def run_recovery_mode(
+    args: argparse.Namespace,
+    sites: list[dict[str, str]],
+    directories: dict[str, Path],
+    crawl_config: dict[str, Any],
+    reporter: ProgressReporter,
+) -> int:
+    print("CRAWL RECOVERY: local artifacts only; no network or API calls.")
+    results, errors = run_stage(
+        sites,
+        args.workers,
+        lambda site: recover(site, directories[site["name"]], crawl_config, 20_000),
+        stage="crawl_recovery",
+        reporter=reporter,
+    )
+    for name, value in results.items():
+        print(f"[{name}] {value}")
+    return finish_summary(len(sites), len(results), errors, traceback=args.traceback)
+
+
+def run_classification_mode(
+    args: argparse.Namespace,
+    sites: list[dict[str, str]],
+    directories: dict[str, Path],
+    profile: dict[str, Any],
+    reporter: ProgressReporter,
+    crawl_errors: dict[str, JobFailure],
+) -> int:
+    if args.mode == "classify" and args.percentage == 0:
+        print("Bulk classification cancelled; no API calls were made.")
+        return finish_summary(len(sites), 0, crawl_errors, traceback=args.traceback)
+
+    percentage = args.percentage
+    if args.mode == "classify" and percentage is None:
+        print("Percentage of saved evidence to classify [0-100]: ", end="", flush=True)
+        percentage = nonnegative_float(sys.stdin.readline().strip())
+        if percentage > 100:
+            raise ValueError("Percentage must be at most 100")
+        if percentage == 0:
+            print("Bulk classification cancelled; no API calls were made.")
+            return finish_summary(len(sites), 0, crawl_errors, traceback=args.traceback)
+
+    plans, plan_errors = run_stage(
+        sites,
+        args.workers,
+        lambda site: plan_classification(
+            directories[site["name"]] / "evidence.jsonl",
+            percentage=percentage if args.mode == "classify" else None,
+            max_chunks=1 if args.mode == "smoke" else 0,
+            translation=args.translation,
+        ),
+        stage="evidence_plan",
+        reporter=reporter,
+    )
+    total_jev = sum(plan.jev_requests for plan in plans.values())
+    total_deepl = sum(plan.deepl_requests for plan in plans.values())
+    total_chars = sum(plan.deepl_characters for plan in plans.values())
+    print(
+        f"BULK PLAN: sites={len(plans)}, Jev requests={total_jev}, DeepL requests={total_deepl}, DeepL characters={total_chars}"
+    )
+    if not plans:
+        return finish_summary(
+            len(sites), 0, {**crawl_errors, **plan_errors}, traceback=args.traceback
+        )
+    if not args.yes and not approve("Paid API calls are planned."):
+        print("Cancelled; no paid API calls were made.")
+        return finish_summary(
+            len(sites), 0, {**crawl_errors, **plan_errors}, traceback=args.traceback
+        )
+    api_key = os.getenv(args.api_key_env, "")
+    deepl_key = os.getenv(DEEPL_API_KEY_ENV, "")
+    if not api_key or (total_deepl and not deepl_key):
+        raise ValueError("Required Jev or DeepL API key is missing")
+
+    ready = [site for site in sites if site["name"] in plans]
+    reporter.begin("jev", total_jev)
+    if total_deepl:
+        reporter.begin("deepl", total_deepl)
+    job = ClassificationJob(
+        directories=directories,
+        plans=plans,
+        profile=profile,
+        client_factory=JevClient,
+        api_key=api_key,
+        model=args.model,
+        translation=args.translation,
+        target_language=args.translation_target,
+        deepl_key=deepl_key,
+        progress=None if args.no_progress else reporter.on_service,
+        message=reporter.message,
+    )
+    results, errors = run_stage(
+        ready, args.workers, job, stage="classification", reporter=reporter
+    )
+    if results:
+        reporter.begin("overview", 1)
+        reporter.finish()
+        print_overview(rows_for_results(ready, results, profile), profile)
+        reporter.advance("overview")
+        reporter.finish()
+    return finish_summary(
+        len(sites) + len(crawl_errors),
+        len(results),
+        {**crawl_errors, **plan_errors, **errors},
+        traceback=args.traceback,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    reporter = ProgressReporter(enabled=not args.no_progress)
     profile = (
         load_profile(args.profile)
         if args.profile
@@ -257,11 +458,12 @@ def main(argv: list[str] | None = None) -> int:
         for site in sites
     }
     if args.only_missing:
-        existing, lookup_errors = run_jobs(
+        existing, lookup_errors = run_stage(
             sites,
             args.workers,
             lambda site: has_completed_run(directories[site["name"]], profile),
             stage="saved_result",
+            reporter=reporter,
         )
         if lookup_errors:
             print("CLASSIFY NOT STARTED: saved results could not be checked.")
@@ -288,100 +490,12 @@ def main(argv: list[str] | None = None) -> int:
         "request_timeout": 20,
     }
     if args.mode in {"score", "overview", "export"}:
-        print(
-            f"{args.mode.upper()}: local saved responses only; no API calls will be made."
-        )
-        action = (
-            (
-                lambda site: replay(
-                    site_name=site["name"],
-                    site_dir=directories[site["name"]],
-                    profile=profile,
-                )
-            )
-            if args.mode == "score"
-            else (lambda site: current_result(directories[site["name"]], profile))
-        )
-        results, errors = run_jobs(
-            sites,
-            args.workers,
-            action,
-            stage="scoring" if args.mode == "score" else "saved_result",
-        )
-        rows = rows_for_results(sites, results, profile)
-        if rows:
-            print_overview(rows, profile)
-        if args.mode == "export" and not errors:
-            destination = args.output or Path(f"{profile['id']}_scores.csv")
-            count = export_csv(rows, profile, destination)
-            print(f"CSV EXPORT COMPLETE: rows={count}, output={destination}")
-        elif args.mode == "export":
-            print(
-                "CSV EXPORT NOT WRITTEN: selected sites have missing or invalid results."
-            )
-        return finish_summary(
-            len(sites), len(results), errors, traceback=args.traceback
-        )
-
+        return run_offline_mode(args, sites, directories, profile, reporter)
     if args.recover_existing_crawls:
-        print("CRAWL RECOVERY: local artifacts only; no network or API calls.")
-        results, errors = run_jobs(
-            sites,
-            args.workers,
-            lambda site: recover(site, directories[site["name"]], crawl_config, 20_000),
-            stage="crawl_recovery",
-        )
-        for name, value in results.items():
-            print(f"[{name}] {value}")
-        return finish_summary(
-            len(sites), len(results), errors, traceback=args.traceback
-        )
-
+        return run_recovery_mode(args, sites, directories, crawl_config, reporter)
+    crawl_errors: dict[str, JobFailure] = {}
     if args.mode in {"smoke", "crawl"}:
-        print(
-            "CRAWL: website requests; no Jev or DeepL calls during this stage.",
-            flush=True,
-        )
-
-        def do_crawl(site: dict[str, str]) -> Path:
-            directory = directories[site["name"]]
-            if not args.no_progress:
-                print(f"[{site['name']}] crawl START {site['url']}", flush=True)
-            if (
-                args.mode == "crawl"
-                and not args.force_crawl
-                and recent_crawl(
-                    site, directory, crawl_config, args.crawl_max_age_hours
-                )
-            ):
-                if not args.no_progress:
-                    print(f"[{site['name']}] reusing verified crawl", flush=True)
-                return directory
-            result = scrape_site(
-                site_name=site["name"],
-                root_url=site["url"],
-                evidence_root=args.evidence_root,
-                verbose=-1 if args.no_progress else max(1, args.verbose + 1),
-                **crawl_config,
-            )
-            write_state(site, result, crawl_config)
-            return result
-
-        _, crawl_errors = run_jobs(
-            sites,
-            args.workers,
-            do_crawl,
-            progress=(
-                None
-                if args.no_progress
-                else lambda name, done, total, failed: print(
-                    f"CRAWL PROGRESS: {done}/{total} [{name}] "
-                    f"{'failed' if failed else 'done'}",
-                    flush=True,
-                )
-            ),
-            stage="crawl",
-        )
+        crawl_errors = run_crawl_mode(args, sites, directories, crawl_config, reporter)
         if args.mode == "crawl":
             return finish_summary(
                 len(sites),
@@ -394,87 +508,8 @@ def main(argv: list[str] | None = None) -> int:
             return finish_summary(
                 len(crawl_errors), 0, crawl_errors, traceback=args.traceback
             )
-    else:
-        crawl_errors = {}
-
-    if args.mode == "classify" and args.percentage == 0:
-        print("Bulk classification cancelled; no API calls were made.")
-        return finish_summary(len(sites), 0, crawl_errors, traceback=args.traceback)
-
-    percentage = args.percentage
-    if args.mode == "classify" and percentage is None:
-        print("Percentage of saved evidence to classify [0-100]: ", end="", flush=True)
-        percentage = nonnegative_float(sys.stdin.readline().strip())
-        if percentage > 100:
-            raise ValueError("Percentage must be at most 100")
-        if percentage == 0:
-            print("Bulk classification cancelled; no API calls were made.")
-            return finish_summary(len(sites), 0, crawl_errors, traceback=args.traceback)
-
-    plans, plan_errors = run_jobs(
-        sites,
-        args.workers,
-        lambda site: plan_classification(
-            directories[site["name"]] / "evidence.jsonl",
-            percentage=percentage if args.mode == "classify" else None,
-            max_chunks=1 if args.mode == "smoke" else 0,
-            translation=args.translation,
-        ),
-        stage="evidence_plan",
-    )
-    total_jev = sum(plan.jev_requests for plan in plans.values())
-    total_deepl = sum(plan.deepl_requests for plan in plans.values())
-    total_chars = sum(plan.deepl_characters for plan in plans.values())
-    print(
-        f"BULK PLAN: sites={len(plans)}, Jev requests={total_jev}, DeepL requests={total_deepl}, DeepL characters={total_chars}"
-    )
-    if not plans:
-        return finish_summary(
-            len(sites), 0, {**crawl_errors, **plan_errors}, traceback=args.traceback
-        )
-    if not args.yes and not approve("Paid API calls are planned."):
-        print("Cancelled; no paid API calls were made.")
-        return finish_summary(
-            len(sites), 0, {**crawl_errors, **plan_errors}, traceback=args.traceback
-        )
-    api_key = os.getenv(args.api_key_env, "")
-    deepl_key = os.getenv(DEEPL_API_KEY_ENV, "")
-    if not api_key or (total_deepl and not deepl_key):
-        raise ValueError("Required Jev or DeepL API key is missing")
-
-    def classify(site: dict[str, str]) -> dict[str, Any]:
-        result = classify_saved(
-            site_name=site["name"],
-            site_dir=directories[site["name"]],
-            profile=profile,
-            plan=plans[site["name"]],
-            jev_client=JevClient(api_key),
-            model=args.model,
-            translation=args.translation,
-            target_language=args.translation_target,
-            deepl_key=deepl_key,
-            progress=(
-                None
-                if args.no_progress
-                else lambda service: print(
-                    f"[{site['name']}] {service} completed", flush=True
-                )
-            ),
-        )
-        print(
-            f"[{site['name']}] fit={result['fit_score']:.2f}/100; gap={result['main_gap']}; partial={result['evidence_is_partial']}"
-        )
-        return result
-
-    ready = [site for site in sites if site["name"] in plans]
-    results, errors = run_jobs(ready, args.workers, classify, stage="classification")
-    if results:
-        print_overview(rows_for_results(ready, results, profile), profile)
-    return finish_summary(
-        len(sites) + len(crawl_errors),
-        len(results),
-        {**crawl_errors, **plan_errors, **errors},
-        traceback=args.traceback,
+    return run_classification_mode(
+        args, sites, directories, profile, reporter, crawl_errors
     )
 
 
