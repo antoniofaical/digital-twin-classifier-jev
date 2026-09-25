@@ -129,6 +129,31 @@ def test_profile_specific_pipeline_cli_and_export(tmp_path, monkeypatch):
     assert "specific_counterpart" not in rows[0]
 
 
+def test_classify_and_export_show_stage_bars(tmp_path, monkeypatch, capsys):
+    root, sites = _evidence(tmp_path)
+    monkeypatch.setattr(cli, "JevClient", FakeJev)
+    monkeypatch.setenv(cli.JEV_API_KEY_ENV, "test-key")
+    common = ["--sites-file", str(sites), "--evidence-root", str(root)]
+    assert (
+        cli.main(["--mode", "classify", "--percentage", "100", "--yes", *common]) == 0
+    )
+    output = capsys.readouterr().out
+    assert "EVIDENCE_PLAN PROGRESS: 1/1" in output
+    assert "JEV PROGRESS: 1/1" in output
+    assert "CLASSIFICATION PROGRESS: 1/1" in output
+    assert "OVERVIEW PROGRESS: 1/1" in output
+
+    assert (
+        cli.main(
+            ["--mode", "export", "--output", str(tmp_path / "scores.csv"), *common]
+        )
+        == 0
+    )
+    output = capsys.readouterr().out
+    assert "SAVED_RESULT PROGRESS: 1/1" in output
+    assert "EXPORT PROGRESS: 1/1" in output
+
+
 def test_bulk_failure_does_not_cancel_other_sites(tmp_path, monkeypatch, capsys):
     root, sites = _evidence(tmp_path, ("one", "two"))
 
@@ -402,7 +427,10 @@ def test_text_cli_uses_shared_core_and_stores_response_before_replay(
         )
         == 0
     )
-    result = json.loads(capsys.readouterr().out)
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
+    assert "JEV PROGRESS: 1/1" in captured.err
+    assert "CLASSIFICATION PROGRESS: 1/1" in captured.err
     assert result["fit_score"] == 60.0
     profile = load_profile(p)
     source_digest = hashlib.sha256(str(source).encode()).hexdigest()[:16]

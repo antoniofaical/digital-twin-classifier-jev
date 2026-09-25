@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import sys
+from functools import partial
 from pathlib import Path
 
 from .adapters.jev import JevClient
@@ -15,6 +16,7 @@ from .application.classification import classify_saved, plan_classification
 from .domain.profile import criterion_ids, load_profile, question_set_sha256
 from .domain.scoring import build_fit_result, normalize_records
 from .domain.urls import evidence_directory_name
+from .progress import ProgressReporter
 from .storage import RunStore, read_jsonl, write_json
 
 
@@ -36,6 +38,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--request-timeout", type=int, default=60)
     parser.add_argument("--yes", "-y", action="store_true")
     parser.add_argument("--runs-root", type=Path, default=Path("fit_runs"))
+    parser.add_argument("--no-progress", action="store_true")
     args = parser.parse_args(argv)
     if args.chunk_chars <= 0 or args.request_timeout <= 0:
         parser.error("Chunk size and timeout must be positive")
@@ -48,6 +51,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    reporter = ProgressReporter(enabled=not args.no_progress, stream=sys.stderr)
     profile = load_profile(args.profile)
     if args.validate_profile:
         print(
@@ -55,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     if args.responses:
+        reporter.begin("scoring", 1)
         records = read_jsonl(args.responses)
         expected = question_set_sha256(profile)
         if not records or any(
@@ -73,6 +78,8 @@ def main(argv: list[str] | None = None) -> int:
                 "source": str(args.responses),
             },
         )
+        reporter.advance("scoring")
+        reporter.finish()
     else:
         source = args.input
         content = (
@@ -96,9 +103,12 @@ def main(argv: list[str] | None = None) -> int:
                 + "\n",
                 encoding="utf-8",
             )
+        reporter.begin("evidence_plan", 1)
         plan = plan_classification(
             evidence, chunk_chars=args.chunk_chars, preserve_whitespace=True
         )
+        reporter.advance("evidence_plan")
+        reporter.finish()
         print(
             f"FIT PLAN: profile={profile['id']}@{profile['version']}; characters={len(content)}; Jev requests={plan.jev_requests}",
             file=sys.stderr,
@@ -116,23 +126,35 @@ def main(argv: list[str] | None = None) -> int:
         key = os.getenv(args.api_key_env, "")
         if not key:
             raise ValueError(f"Missing Jev API key in {args.api_key_env}")
-        result = classify_saved(
-            site_name=subject,
-            site_dir=site_dir,
-            profile=profile,
-            plan=plan,
-            jev_client=JevClient(key, timeout=args.request_timeout, input_style="text"),
-            model=args.model,
-            extra_metadata={"input_sha256": digest, "source": source},
-            evidence_unit_prefix="input_chunk",
-        )
+        reporter.begin("jev", plan.jev_requests)
+        reporter.begin("classification", 1)
+        try:
+            result = classify_saved(
+                site_name=subject,
+                site_dir=site_dir,
+                profile=profile,
+                plan=plan,
+                jev_client=JevClient(
+                    key, timeout=args.request_timeout, input_style="text"
+                ),
+                model=args.model,
+                extra_metadata={"input_sha256": digest, "source": source},
+                evidence_unit_prefix="input_chunk",
+                progress=partial(reporter.on_service, subject),
+            )
+            reporter.advance("classification")
+        finally:
+            reporter.finish()
         if args.responses_output:
             directory, _, _ = RunStore(site_dir, profile).current()
             args.responses_output.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(directory / "responses.jsonl", args.responses_output)
         print(f"Saved run: {site_dir}", file=sys.stderr)
     if args.output:
+        reporter.begin("export", 1)
         write_json(args.output, result)
+        reporter.advance("export")
+        reporter.finish()
         print(
             f"FIT COMPLETE: score={result['fit_score']:.2f}/100; output={args.output}",
             file=sys.stderr,
