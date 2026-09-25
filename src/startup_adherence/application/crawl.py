@@ -102,7 +102,7 @@ def scrape_site(
     }
 
     try:
-        log(2, f"robots GET {robots_url}")
+        log(1, f"robots GET {robots_url}")
         response = session.get(robots_url, timeout=request_timeout)
         log(2, f"robots HTTP {response.status_code} {response.url}")
         if response.ok:
@@ -117,7 +117,7 @@ def scrape_site(
     except requests.RequestException as exc:
         robots.parse([])
         errors.append({"url": robots_url, "error": str(exc)})
-        log(2, f"robots ERROR {robots_url}: {exc}")
+        log(1, f"robots ERROR {robots_url}: {exc}")
 
     queue: deque[str] = deque()
     queued: set[str] = set()
@@ -171,7 +171,7 @@ def scrape_site(
             return
         sitemap_seen.add(value)
         try:
-            log(2, f"sitemap GET {value}")
+            log(1, f"sitemap GET {value}")
             response = session.get(value, timeout=request_timeout)
             response.raise_for_status()
             if not in_scope(response.url, root_url, include_subdomains):
@@ -193,7 +193,7 @@ def scrape_site(
                     enqueue(location)
         except requests.RequestException as exc:
             errors.append({"url": value, "error": str(exc)})
-            log(2, f"sitemap ERROR {value}: {exc}")
+            log(1, f"sitemap ERROR {value}: {exc}")
 
     for sitemap in sitemap_seeds:
         read_sitemap(sitemap)
@@ -276,7 +276,7 @@ def scrape_site(
             issue = {"url": url, "error": str(exc)}
             errors.append(issue)
             page_errors.append(issue)
-            log(2, f"page ERROR {url}: {exc}")
+            log(1, f"page ERROR {url}: {exc}")
 
     manifest = {
         "site_name": site_name,
