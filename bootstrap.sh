@@ -30,10 +30,12 @@ if [[ ! -d src/startup_adherence ]]; then
     exit 1
 fi
 
-if [[ ! -x .venv/bin/python ]]; then
-    printf '==> Creating virtual environment\n'
+if [[ ! -x .venv/bin/python ]] || ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+    printf '==> Creating or repairing virtual environment\n'
     if ! "$python_bin" -m venv .venv; then
-        printf 'Could not create .venv. On Ubuntu, install python3-venv for your Python version.\n' >&2
+        python_version="$("$python_bin" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+        printf 'Could not create .venv. On Ubuntu, run: apt update && apt install python%s-venv\n' "$python_version" >&2
+        printf 'Then rerun this script; it will repair the incomplete .venv.\n' >&2
         exit 1
     fi
 fi
