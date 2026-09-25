@@ -175,7 +175,10 @@ def select_sites(
 
 
 def run_jobs(
-    sites: list[dict[str, str]], workers: int, operation: Callable[[dict[str, str]], T]
+    sites: list[dict[str, str]],
+    workers: int,
+    operation: Callable[[dict[str, str]], T],
+    progress: Callable[[str, int, int, bool], None] | None = None,
 ) -> tuple[dict[str, T], dict[str, str]]:
     """Preserve unrelated site results if one site fails."""
     results: dict[str, T] = {}
@@ -188,6 +191,13 @@ def run_jobs(
                 results[site["name"]] = future.result()
             except Exception as exc:  # noqa: BLE001 - each site must fail independently
                 errors[site["name"]] = f"{type(exc).__name__}: {exc}"
+            if progress is not None:
+                progress(
+                    site["name"],
+                    len(results) + len(errors),
+                    len(sites),
+                    site["name"] in errors,
+                )
     return results, errors
 
 
@@ -268,10 +278,15 @@ def main(argv: list[str] | None = None) -> int:
         return finish_summary(len(sites), len(results), errors)
 
     if args.mode in {"smoke", "crawl"}:
-        print("CRAWL: website requests; no Jev or DeepL calls during this stage.")
+        print(
+            "CRAWL: website requests; no Jev or DeepL calls during this stage.",
+            flush=True,
+        )
 
         def do_crawl(site: dict[str, str]) -> Path:
             directory = directories[site["name"]]
+            if not args.no_progress:
+                print(f"[{site['name']}] crawl START {site['url']}", flush=True)
             if (
                 args.mode == "crawl"
                 and not args.force_crawl
@@ -279,19 +294,33 @@ def main(argv: list[str] | None = None) -> int:
                     site, directory, crawl_config, args.crawl_max_age_hours
                 )
             ):
-                print(f"[{site['name']}] reusing verified crawl")
+                if not args.no_progress:
+                    print(f"[{site['name']}] reusing verified crawl", flush=True)
                 return directory
             result = scrape_site(
                 site_name=site["name"],
                 root_url=site["url"],
                 evidence_root=args.evidence_root,
-                verbose=args.verbose,
+                verbose=-1 if args.no_progress else max(1, args.verbose + 1),
                 **crawl_config,
             )
             write_state(site, result, crawl_config)
             return result
 
-        _, crawl_errors = run_jobs(sites, args.workers, do_crawl)
+        _, crawl_errors = run_jobs(
+            sites,
+            args.workers,
+            do_crawl,
+            progress=(
+                None
+                if args.no_progress
+                else lambda name, done, total, failed: print(
+                    f"CRAWL PROGRESS: {done}/{total} [{name}] "
+                    f"{'failed' if failed else 'done'}",
+                    flush=True,
+                )
+            ),
+        )
         if args.mode == "crawl":
             return finish_summary(
                 len(sites), len(sites) - len(crawl_errors), crawl_errors
