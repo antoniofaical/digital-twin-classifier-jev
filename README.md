@@ -64,6 +64,10 @@ manifesto e hash da evidência coincidirem. Use `--force-crawl` para refazer.
 `--recover-existing-crawls` recria o estado local a partir de manifesto e
 evidência verificáveis, preservando o horário da coleta; não acessa a rede.
 Falhas de sites são relatadas separadamente e geram código de saída `1`.
+Durante o crawl, o terminal exibe o início de cada site, requisições a robots,
+sitemaps e páginas, além da conclusão por site e do avanço total do lote.
+Use `-v` para detalhes de respostas e URLs ignoradas; `--no-progress` oculta
+as mensagens de progresso.
 
 ## Avaliação de texto
 
