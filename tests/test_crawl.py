@@ -50,6 +50,25 @@ def test_invalid_root_is_rejected_without_persisting_attempt(tmp_path):
     assert not (tmp_path / "x").exists()
 
 
+def test_crawl_reports_network_activity_before_finishing(tmp_path, monkeypatch):
+    root = "https://example.com/"
+    fake = FakeSession({root: FakeResponse(root, "<p>Company</p>")})
+    monkeypatch.setattr(crawl.requests, "Session", lambda: fake)
+    events = []
+    crawl.scrape_site(
+        site_name="one",
+        root_url=root,
+        evidence_root=tmp_path,
+        max_sitemaps=1,
+        verbose=1,
+        log_callback=events.append,
+    )
+    assert any("robots GET" in event for event in events)
+    assert any("sitemap GET" in event for event in events)
+    assert any("page 1 GET" in event for event in events)
+    assert any("saved 1 page" in event for event in events)
+
+
 def test_redirected_page_is_never_saved_as_company_evidence(tmp_path, monkeypatch):
     pages = {
         "https://example.com/": FakeResponse(
