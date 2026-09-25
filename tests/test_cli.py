@@ -166,6 +166,100 @@ def test_bulk_failure_does_not_cancel_other_sites(tmp_path, monkeypatch, capsys)
     ).exists()
 
 
+def test_export_groups_missing_profile_results_and_does_not_write_csv(
+    tmp_path, monkeypatch, capsys
+):
+    root, sites = _evidence(tmp_path, ("one", "two", "three"))
+    monkeypatch.setattr(cli, "JevClient", FakeJev)
+    monkeypatch.setenv(cli.JEV_API_KEY_ENV, "test-key")
+    common = ["--sites-file", str(sites), "--evidence-root", str(root)]
+    assert (
+        cli.main(
+            [
+                "--mode",
+                "classify",
+                "--site",
+                "one",
+                "--percentage",
+                "100",
+                "--yes",
+                *common,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    destination = tmp_path / "scores.csv"
+    assert cli.main(["--mode", "export", "--output", str(destination), *common]) == 1
+    output = capsys.readouterr().out
+    assert "selected=3, completed=1, failed=2" in output
+    assert "[saved_result] 2 site(s) without a completed run" in output
+    assert "two, three" in output
+    assert "CSV EXPORT NOT WRITTEN" in output
+    assert "Traceback" not in output
+    assert not destination.exists()
+
+
+def test_jev_failure_reports_stage_cause_and_traceback(tmp_path, monkeypatch, capsys):
+    root, sites = _evidence(tmp_path)
+
+    class BrokenJev(FakeJev):
+        def evaluate(self, **kwargs):
+            raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(cli, "JevClient", BrokenJev)
+    monkeypatch.setenv(cli.JEV_API_KEY_ENV, "test-key")
+    assert (
+        cli.main(
+            [
+                "--mode",
+                "classify",
+                "--percentage",
+                "100",
+                "--yes",
+                "--traceback",
+                "--sites-file",
+                str(sites),
+                "--evidence-root",
+                str(root),
+            ]
+        )
+        == 1
+    )
+    output = capsys.readouterr().out
+    assert "[one] [jev] RuntimeError: provider unavailable" in output
+    assert "[one] traceback (jev):" in output
+    assert "in evaluate" in output
+    profile = load_profile(PROFILES / "digital_twin.json")
+    runs = list((RunStore(root / "one", profile).root / "runs").iterdir())
+    assert read_json(runs[0] / "run.json")["failed_stage"] == "jev"
+
+
+def test_crawl_failure_reports_stage_and_traceback(tmp_path, monkeypatch, capsys):
+    _, sites = _evidence(tmp_path)
+
+    def broken_crawl(**kwargs):
+        raise OSError("connection reset")
+
+    monkeypatch.setattr(cli, "scrape_site", broken_crawl)
+    assert (
+        cli.main(
+            [
+                "--mode",
+                "crawl",
+                "--force-crawl",
+                "--traceback",
+                "--sites-file",
+                str(sites),
+            ]
+        )
+        == 1
+    )
+    output = capsys.readouterr().out
+    assert "[one] [crawl] OSError: connection reset" in output
+    assert "broken_crawl" in output
+
+
 def test_duplicate_sites_are_classified_once_and_exported_once(
     tmp_path, monkeypatch, capsys
 ):
