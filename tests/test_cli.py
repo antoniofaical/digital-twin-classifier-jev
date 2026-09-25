@@ -209,6 +209,32 @@ def test_duplicate_url_alias_can_be_selected_without_repeated_job():
     assert cli.select_sites(configured, ["alias", "alias"]) == configured[:1]
 
 
+@pytest.mark.parametrize("no_progress", [False, True])
+def test_crawl_console_shows_site_and_batch_progress_by_default(
+    tmp_path, monkeypatch, capsys, no_progress
+):
+    root, sites = _evidence(tmp_path, ("one", "two"))
+    crawl_options = []
+
+    def scrape(**kwargs):
+        crawl_options.append(kwargs)
+        if kwargs["site_name"] == "two":
+            raise RuntimeError("request failed")
+        return root / kwargs["site_name"]
+
+    monkeypatch.setattr(cli, "scrape_site", scrape)
+    monkeypatch.setattr(cli, "write_state", lambda *args: None)
+    args = ["--mode", "crawl", "--force-crawl", "--sites-file", str(sites)]
+    if no_progress:
+        args.append("--no-progress")
+    assert cli.main(args) == 1
+    output = capsys.readouterr().out
+    assert ("[one] crawl START" in output) == (not no_progress)
+    assert ("CRAWL PROGRESS: 2/2" in output) == (not no_progress)
+    assert "selected=2, completed=1, failed=1" in output
+    assert {item["verbose"] for item in crawl_options} == ({-1} if no_progress else {1})
+
+
 def test_site_directory_collision_still_fails_for_distinct_sites():
     with pytest.raises(ValueError, match="collide on disk"):
         cli.select_sites(
