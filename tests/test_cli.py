@@ -166,6 +166,60 @@ def test_bulk_failure_does_not_cancel_other_sites(tmp_path, monkeypatch, capsys)
     ).exists()
 
 
+def test_duplicate_sites_are_classified_once_and_exported_once(
+    tmp_path, monkeypatch, capsys
+):
+    root, sites = _evidence(tmp_path, ("one", "two"))
+    sites.write_text(
+        json.dumps(
+            [
+                {"name": "one", "url": "https://one.test/"},
+                {"name": "one", "url": "https://other.test/"},
+                {"name": "one alias", "url": "http://www.one.test/?utm_source=list"},
+                {"name": "two", "url": "https://two.test/"},
+                {"name": "two", "url": "https://two.test/"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    FakeJev.calls = []
+    monkeypatch.setattr(cli, "JevClient", FakeJev)
+    monkeypatch.setenv(cli.JEV_API_KEY_ENV, "test-key")
+    common = ["--sites-file", str(sites), "--evidence-root", str(root)]
+
+    assert (
+        cli.main(["--mode", "classify", "--percentage", "100", "--yes", *common]) == 0
+    )
+    assert sorted(call[0] for call in FakeJev.calls) == ["one", "two"]
+    output = tmp_path / "scores.csv"
+    assert cli.main(["--mode", "export", "--output", str(output), *common]) == 0
+    with output.open(encoding="utf-8-sig", newline="") as stream:
+        assert [row["site_name"] for row in csv.DictReader(stream)] == ["one", "two"]
+    captured = capsys.readouterr()
+    assert "Skipped 3 duplicate site entries" in captured.err
+    assert "selected=2, completed=2" in captured.out
+
+
+def test_duplicate_url_alias_can_be_selected_without_repeated_job():
+    configured = [
+        {"name": "one", "url": "https://example.test/path/"},
+        {"name": "alias", "url": "http://www.example.test/path?utm_campaign=x"},
+        {"name": "two", "url": "https://other.test/"},
+    ]
+    assert cli.select_sites(configured, ["alias", "alias"]) == configured[:1]
+
+
+def test_site_directory_collision_still_fails_for_distinct_sites():
+    with pytest.raises(ValueError, match="collide on disk"):
+        cli.select_sites(
+            [
+                {"name": "a b", "url": "https://one.test/"},
+                {"name": "a-b", "url": "https://two.test/"},
+            ],
+            None,
+        )
+
+
 def test_text_cli_uses_shared_core_and_stores_response_before_replay(
     tmp_path, monkeypatch, capsys
 ):

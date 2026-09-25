@@ -27,6 +27,12 @@ uso no checkout; o pacote instalado fornece `startup-adherence` e
 Configure `sites.json` como uma lista de `{"name": "empresa", "url":
 "https://empresa.example/"}`. Os modos funcionam com `--sites-file`, `--site`,
 `--workers` e `--evidence-root`. Use `--profile` para qualquer perfil validado.
+Entradas repetidas por nome ou URL equivalente são ignoradas antes do crawl,
+da classificação e da exportação; prevalece a primeira ocorrência. O programa
+informa quantas entradas foram descartadas. URLs com e sem `www`, com esquemas
+HTTP/HTTPS diferentes, barras finais ou parâmetros de consulta são tratadas
+como equivalentes quando apontam para o mesmo host e caminho. `--site` também
+aceita o nome de uma entrada descartada e seleciona a primeira ocorrência.
 
 ```bash
 # Coleta pública; não usa APIs pagas.
