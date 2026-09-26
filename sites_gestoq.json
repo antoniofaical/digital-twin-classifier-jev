@@ -1,6 +1,12 @@
 [
-  { "name": "GS1 Denmark", "url": "https://www.gs1.dk/en" },
-  { "name": "Scan4Safety", "url": "https://d25cc5egulecyi.cloudfront.net/" },
+  {
+    "name": "GS1 Denmark",
+    "url": "https://www.gs1.dk/en"
+  },
+  {
+    "name": "Scan4Safety",
+    "url": "https://d25cc5egulecyi.cloudfront.net/"
+  },
   {
     "name": "Research Explorer The University of Manchester",
     "url": "https://research.manchester.ac.uk/"
@@ -10,113 +16,285 @@
     "url": "https://www.gov.br/fazenda/pt-br"
   },
   {
-    "name": "Portal de Periódicos da CAPES",
-    "url": "https://www.periodicos.capes.gov.br/"
-  },
-  {
     "name": "Seventhsense Technologies",
     "url": "https://www.7stl.com/index.html"
   },
-  { "name": "GOL Linhas Aéreas", "url": "https://www.voegol.com.br/" },
+  {
+    "name": "GOL Linhas Aéreas",
+    "url": "https://www.voegol.com.br/"
+  },
   {
     "name": "Association of Health Care Journalists",
     "url": "https://healthjournalism.org/"
   },
-  { "name": "NewIcon Oy", "url": "https://newicon.fi/" },
-  { "name": "Macquarie University", "url": "https://researchers.mq.edu.au/" },
+  {
+    "name": "NewIcon Oy",
+    "url": "https://newicon.fi/"
+  },
+  {
+    "name": "Macquarie University",
+    "url": "https://researchers.mq.edu.au/"
+  },
   {
     "name": "ARxIUM | Innovative Pharmacy Solutions",
     "url": "https://www.arxium.com/"
   },
-  { "name": "GulfDrug", "url": "https://www.gulfdrug.com/en" },
-  { "name": "TouchPoint Medical", "url": "https://www.touchpointmed.com/" },
+  {
+    "name": "GulfDrug",
+    "url": "https://www.gulfdrug.com/en"
+  },
+  {
+    "name": "TouchPoint Medical",
+    "url": "https://www.touchpointmed.com/"
+  },
   {
     "name": "Verified Market Research",
     "url": "https://www.verifiedmarketresearch.com/"
   },
-  { "name": "Illumia", "url": "https://illumiatech.com/" },
-  { "name": "AKLI", "url": "https://akli.io/" },
-  { "name": "YCR Distribution Limited", "url": "https://ezeepos.co.uk/" },
-  { "name": "Kitchen CUT", "url": "https://kitchencut.com/" },
-  { "name": "NutraSoft", "url": "https://www.nutrasoft.ca/" },
-  { "name": "AminoCloud", "url": "https://aminocloud.com/" },
-  { "name": "Vimeo", "url": "https://vimeo.com/" },
-  { "name": "DAIC", "url": "https://www.dicardiology.com/" },
-  { "name": "Exan Software", "url": "https://www.exansoftware.com/" },
-  { "name": "Glide", "url": "https://www.glideapps.com/" },
-  { "name": "ImageFIRST", "url": "https://www.imagefirst.com/" },
-  { "name": "Salvify", "url": "https://www.salvify.co.uk/" },
-  { "name": "Eatres", "url": "https://eatres.com/" },
-  { "name": "Odoo", "url": "https://www.odoo.com/" },
-  { "name": "Apicbase", "url": "https://get.apicbase.com/" },
-  { "name": "CaterZen", "url": "https://www.caterzen.com/" },
-  { "name": "EventPro Software", "url": "https://www.eventpro.net/" },
-  { "name": "Pipedrive", "url": "https://www.pipedrive.com/pt" },
-  { "name": "Pxier", "url": "https://www.pxier.com/en/" },
-  { "name": "Homme de marché", "url": "https://fr.marketman.com/" },
-  { "name": "Post Punk Kitchen", "url": "https://www.theppk.com/" },
-  { "name": "Abbey's Kitchen", "url": "https://www.abbeyskitchen.com/" },
+  {
+    "name": "Illumia",
+    "url": "https://illumiatech.com/"
+  },
+  {
+    "name": "AKLI",
+    "url": "https://akli.io/"
+  },
+  {
+    "name": "YCR Distribution Limited",
+    "url": "https://ezeepos.co.uk/"
+  },
+  {
+    "name": "Kitchen CUT",
+    "url": "https://kitchencut.com/"
+  },
+  {
+    "name": "NutraSoft",
+    "url": "https://www.nutrasoft.ca/"
+  },
+  {
+    "name": "AminoCloud",
+    "url": "https://aminocloud.com/"
+  },
+  {
+    "name": "Vimeo",
+    "url": "https://vimeo.com/"
+  },
+  {
+    "name": "DAIC",
+    "url": "https://www.dicardiology.com/"
+  },
+  {
+    "name": "Exan Software",
+    "url": "https://www.exansoftware.com/"
+  },
+  {
+    "name": "Glide",
+    "url": "https://www.glideapps.com/"
+  },
+  {
+    "name": "ImageFIRST",
+    "url": "https://www.imagefirst.com/"
+  },
+  {
+    "name": "Salvify",
+    "url": "https://www.salvify.co.uk/"
+  },
+  {
+    "name": "Eatres",
+    "url": "https://eatres.com/"
+  },
+  {
+    "name": "Odoo",
+    "url": "https://www.odoo.com/"
+  },
+  {
+    "name": "Apicbase",
+    "url": "https://get.apicbase.com/"
+  },
+  {
+    "name": "CaterZen",
+    "url": "https://www.caterzen.com/"
+  },
+  {
+    "name": "EventPro Software",
+    "url": "https://www.eventpro.net/"
+  },
+  {
+    "name": "Pipedrive",
+    "url": "https://www.pipedrive.com/pt"
+  },
+  {
+    "name": "Pxier",
+    "url": "https://www.pxier.com/en/"
+  },
+  {
+    "name": "Homme de marché",
+    "url": "https://fr.marketman.com/"
+  },
+  {
+    "name": "Post Punk Kitchen",
+    "url": "https://www.theppk.com/"
+  },
+  {
+    "name": "Abbey's Kitchen",
+    "url": "https://www.abbeyskitchen.com/"
+  },
   {
     "name": "In Katrina's Kitchen",
     "url": "https://www.inkatrinaskitchen.com/"
   },
-  { "name": "Kitchen Restaurant", "url": "https://www.kitchenpb.com/" },
-  { "name": "Kitchen Bistro", "url": "https://www.thekitchen.com/" },
-  { "name": "The Kitchen Door", "url": "https://www.thekitchendoor.com/" },
-  { "name": "Culvana", "url": "https://culvana.ai/" },
-  { "name": "Chick-fil-A", "url": "https://www.chick-fil-a.com/" },
+  {
+    "name": "Kitchen Restaurant",
+    "url": "https://www.kitchenpb.com/"
+  },
+  {
+    "name": "Kitchen Bistro",
+    "url": "https://www.thekitchen.com/"
+  },
+  {
+    "name": "The Kitchen Door",
+    "url": "https://www.thekitchendoor.com/"
+  },
+  {
+    "name": "Culvana",
+    "url": "https://culvana.ai/"
+  },
+  {
+    "name": "Chick-fil-A",
+    "url": "https://www.chick-fil-a.com/"
+  },
   {
     "name": "Contemporary Catering",
     "url": "https://www.contemporarycatering.com.au/"
   },
-  { "name": "FoodNotify", "url": "https://www.foodnotify.com/de/" },
-  { "name": "Peter Rowland Group", "url": "https://www.peterrowland.com.au/" },
+  {
+    "name": "FoodNotify",
+    "url": "https://www.foodnotify.com/de/"
+  },
+  {
+    "name": "Peter Rowland Group",
+    "url": "https://www.peterrowland.com.au/"
+  },
   {
     "name": "Founding Farmers",
     "url": "https://www.wearefoundingfarmers.com/"
   },
-  { "name": "IntuitionLabs", "url": "https://intuitionlabs.ai/" },
-  { "name": "Officehubtech", "url": "https://officehubtech.com/" },
-  { "name": "CUBEX", "url": "https://www.cubex.com/" },
-  { "name": "eMedevents", "url": "https://www.emedevents.com/" },
-  { "name": "Softr", "url": "https://www.softr.io/" },
-  { "name": "AppIntent", "url": "https://www.appintent.com/" },
+  {
+    "name": "IntuitionLabs",
+    "url": "https://intuitionlabs.ai/"
+  },
+  {
+    "name": "Officehubtech",
+    "url": "https://officehubtech.com/"
+  },
+  {
+    "name": "CUBEX",
+    "url": "https://www.cubex.com/"
+  },
+  {
+    "name": "Softr",
+    "url": "https://www.softr.io/"
+  },
+  {
+    "name": "AppIntent",
+    "url": "https://www.appintent.com/"
+  },
   {
     "name": "Department of Corrections and Community Supervision",
     "url": "https://doccs.ny.gov/"
   },
-  { "name": "Goodsource Solutions", "url": "https://goodsource.com/" },
+  {
+    "name": "Goodsource Solutions",
+    "url": "https://goodsource.com/"
+  },
   {
     "name": "Correctional Association of New York",
     "url": "https://www.correctionalassociation.org/"
   },
-  { "name": "Apicbase", "url": "https://get.apicbase.com/" },
-  { "name": "Oscar", "url": "https://oscar.qa/" },
-  { "name": "Dephna", "url": "https://www.dephna.com/" },
-  { "name": "Zilicius", "url": "https://zilicius.com/" },
-  { "name": "AAAI", "url": "https://aaai.org/" },
-  { "name": "Art SignWorks, Inc.", "url": "https://www.artsignworks.com/" },
-  { "name": "MEDIX-CARE", "url": "https://www.medix-care.com/" },
-  { "name": "EIT Food", "url": "https://www.eitfood.eu/" },
-  { "name": "SageNet", "url": "https://www.sagenet.com/" },
-  { "name": "European Society of Medicine", "url": "https://esmed.org/" },
-  { "name": "Straits Research", "url": "https://straitsresearch.com/" },
-  { "name": "FoodReady", "url": "https://foodready.ai/" },
-  { "name": "InVentry", "url": "https://inventry.co.uk/" },
+  {
+    "name": "Apicbase",
+    "url": "https://get.apicbase.com/"
+  },
+  {
+    "name": "Oscar",
+    "url": "https://oscar.qa/"
+  },
+  {
+    "name": "Dephna",
+    "url": "https://www.dephna.com/"
+  },
+  {
+    "name": "Zilicius",
+    "url": "https://zilicius.com/"
+  },
+  {
+    "name": "AAAI",
+    "url": "https://aaai.org/"
+  },
+  {
+    "name": "Art SignWorks, Inc.",
+    "url": "https://www.artsignworks.com/"
+  },
+  {
+    "name": "MEDIX-CARE",
+    "url": "https://www.medix-care.com/"
+  },
+  {
+    "name": "EIT Food",
+    "url": "https://www.eitfood.eu/"
+  },
+  {
+    "name": "SageNet",
+    "url": "https://www.sagenet.com/"
+  },
+  {
+    "name": "European Society of Medicine",
+    "url": "https://esmed.org/"
+  },
+  {
+    "name": "Straits Research",
+    "url": "https://straitsresearch.com/"
+  },
+  {
+    "name": "FoodReady",
+    "url": "https://foodready.ai/"
+  },
+  {
+    "name": "InVentry",
+    "url": "https://inventry.co.uk/"
+  },
   {
     "name": "Sculpture Hospitality",
     "url": "https://www.sculpturehospitality.com/"
   },
-  { "name": "Notion", "url": "https://www.notion.com/" },
-  { "name": "On my Om", "url": "https://om.co/" },
-  { "name": "Cybrosys Technologies", "url": "https://www.cybrosys.com/" },
+  {
+    "name": "Notion",
+    "url": "https://www.notion.com/"
+  },
+  {
+    "name": "On my Om",
+    "url": "https://om.co/"
+  },
+  {
+    "name": "Cybrosys Technologies",
+    "url": "https://www.cybrosys.com/"
+  },
   {
     "name": "Fast Technology",
     "url": "https://www.fastinventorysoftware.com/"
   },
-  { "name": "Hopstack Inc", "url": "https://www.hopstack.io/" },
-  { "name": "Jungheinrich AG", "url": "https://www.jungheinrich.co.th/" },
-  { "name": "Management 3.0", "url": "https://management30.com/" },
+  {
+    "name": "Hopstack Inc",
+    "url": "https://www.hopstack.io/"
+  },
+  {
+    "name": "Jungheinrich AG",
+    "url": "https://www.jungheinrich.co.th/"
+  },
+  {
+    "name": "Management 3.0",
+    "url": "https://management30.com/"
+  },
   {
     "name": "UCLA Anderson School of Management",
     "url": "https://www.anderson.ucla.edu/"
@@ -125,61 +303,166 @@
     "name": "Dalhousie University",
     "url": "https://www.dal.ca/faculty/management.html"
   },
-  { "name": "Government.nl", "url": "https://www.government.nl/" },
-  { "name": "Lancaster University", "url": "https://www.lancaster.ac.uk/" },
-  { "name": "United Nations", "url": "https://www.un.org/en" },
+  {
+    "name": "Government.nl",
+    "url": "https://www.government.nl/"
+  },
+  {
+    "name": "Lancaster University",
+    "url": "https://www.lancaster.ac.uk/"
+  },
+  {
+    "name": "United Nations",
+    "url": "https://www.un.org/en"
+  },
   {
     "name": "Research portal Eindhoven University of Technology",
     "url": "https://research.tue.nl/"
   },
-  { "name": "VUEMED", "url": "https://vuemed.com/" },
-  { "name": "CaterCamp", "url": "https://catercamp.com/" },
-  { "name": "FoodReady", "url": "https://foodready.ai/" },
-  { "name": "Greatzern", "url": "https://greatzern.com/" },
-  { "name": "Amalga Health", "url": "https://www.amalga.health/" },
-  { "name": "Civica", "url": "https://www.civica.com/en-gb/" },
-  { "name": "Focus Softnet", "url": "https://www.focussoftnet.com/" },
-  { "name": "Glide", "url": "https://www.glideapps.com/" },
-  { "name": "MyHospitalNow", "url": "https://www.myhospitalnow.com/" },
-  { "name": "Pxier", "url": "https://www.pxier.com/en/" },
-  { "name": "Softr", "url": "https://www.softr.io/" },
-  { "name": "Software", "url": "https://software.com.br/" },
-  { "name": "Mobilon Mídia LTDA", "url": "https://tecnoblog.net/" },
+  {
+    "name": "VUEMED",
+    "url": "https://vuemed.com/"
+  },
+  {
+    "name": "CaterCamp",
+    "url": "https://catercamp.com/"
+  },
+  {
+    "name": "FoodReady",
+    "url": "https://foodready.ai/"
+  },
+  {
+    "name": "Greatzern",
+    "url": "https://greatzern.com/"
+  },
+  {
+    "name": "Amalga Health",
+    "url": "https://www.amalga.health/"
+  },
+  {
+    "name": "Civica",
+    "url": "https://www.civica.com/en-gb/"
+  },
+  {
+    "name": "Focus Softnet",
+    "url": "https://www.focussoftnet.com/"
+  },
+  {
+    "name": "Glide",
+    "url": "https://www.glideapps.com/"
+  },
+  {
+    "name": "MyHospitalNow",
+    "url": "https://www.myhospitalnow.com/"
+  },
+  {
+    "name": "Pxier",
+    "url": "https://www.pxier.com/en/"
+  },
+  {
+    "name": "Softr",
+    "url": "https://www.softr.io/"
+  },
+  {
+    "name": "Software",
+    "url": "https://software.com.br/"
+  },
+  {
+    "name": "Mobilon Mídia LTDA",
+    "url": "https://tecnoblog.net/"
+  },
   {
     "name": "Instituto Nacional da Propriedade Industrial",
     "url": "https://www.gov.br/inpi/en"
   },
-  { "name": "FoodReady", "url": "https://foodready.ai/" },
-  { "name": "NutraSoft", "url": "https://www.nutrasoft.ca/" },
+  {
+    "name": "FoodReady",
+    "url": "https://foodready.ai/"
+  },
+  {
+    "name": "NutraSoft",
+    "url": "https://www.nutrasoft.ca/"
+  },
   {
     "name": "Yellow Dog Software",
     "url": "https://www.yellowdogsoftware.com/"
   },
-  { "name": "FoodReady", "url": "https://foodready.ai/" },
-  { "name": "Illumia", "url": "https://illumiatech.com/" },
+  {
+    "name": "FoodReady",
+    "url": "https://foodready.ai/"
+  },
+  {
+    "name": "Illumia",
+    "url": "https://illumiatech.com/"
+  },
   {
     "name": "Tenwave Infotech Pvt Ltd",
     "url": "https://www.tenwavehealthcare.com/"
   },
-  { "name": "Drawing Room", "url": "https://drawingroom.org.uk/" },
-  { "name": "ROOM", "url": "https://room.com/" },
-  { "name": "G1", "url": "https://g1.globo.com/" },
-  { "name": "Rede D'Or", "url": "https://www.rededorsaoluiz.com.br/" },
-  { "name": "SupplyChainBrain", "url": "https://www.supplychainbrain.com/" },
-  { "name": "Skillversity", "url": "http://www.skillversity.co.in/index.php" },
-  { "name": "FoodReady", "url": "https://foodready.ai/" },
+  {
+    "name": "Drawing Room",
+    "url": "https://drawingroom.org.uk/"
+  },
+  {
+    "name": "ROOM",
+    "url": "https://room.com/"
+  },
+  {
+    "name": "G1",
+    "url": "https://g1.globo.com/"
+  },
+  {
+    "name": "Rede D'Or",
+    "url": "https://www.rededorsaoluiz.com.br/"
+  },
+  {
+    "name": "SupplyChainBrain",
+    "url": "https://www.supplychainbrain.com/"
+  },
+  {
+    "name": "Skillversity",
+    "url": "http://www.skillversity.co.in/index.php"
+  },
+  {
+    "name": "FoodReady",
+    "url": "https://foodready.ai/"
+  },
   {
     "name": "Basic Kitchen and Food Service Management",
     "url": "https://opentextbc.ca/basickitchenandfoodservicemanagement/"
   },
-  { "name": "TotalCtrl", "url": "https://totalctrl.com/" },
-  { "name": "Illumia", "url": "https://illumiatech.com/" },
-  { "name": "AHRMM", "url": "https://www.ahrmm.org/" },
-  { "name": "Netsmart Technologies, Inc,", "url": "https://www.ntst.com/" },
-  { "name": "Teknisa", "url": "https://www.teknisa.com/" },
-  { "name": "THE ORG", "url": "https://theorg.com/org/unilabs" },
-  { "name": "Teknisa", "url": "https://www.teknisa.com/" },
-  { "name": "Focus Softnet", "url": "https://www.focussoftnet.com/" },
+  {
+    "name": "TotalCtrl",
+    "url": "https://totalctrl.com/"
+  },
+  {
+    "name": "Illumia",
+    "url": "https://illumiatech.com/"
+  },
+  {
+    "name": "AHRMM",
+    "url": "https://www.ahrmm.org/"
+  },
+  {
+    "name": "Netsmart Technologies, Inc,",
+    "url": "https://www.ntst.com/"
+  },
+  {
+    "name": "Teknisa",
+    "url": "https://www.teknisa.com/"
+  },
+  {
+    "name": "THE ORG",
+    "url": "https://theorg.com/org/unilabs"
+  },
+  {
+    "name": "Teknisa",
+    "url": "https://www.teknisa.com/"
+  },
+  {
+    "name": "Focus Softnet",
+    "url": "https://www.focussoftnet.com/"
+  },
   {
     "name": "SmartChoice Food Pantry Software",
     "url": "https://www.smartchoicepantry.com/"
@@ -196,33 +479,90 @@
     "name": "Ergonomic Corporation Hongkong Ltd",
     "url": "https://www.ergoshopping.com.hk/"
   },
-  { "name": "Bermuda Hospitals Board", "url": "https://bermudahospitals.bm/" },
-  { "name": "Oxmaint", "url": "https://oxmaint.com/" },
-  { "name": "Mathematica", "url": "https://www.mathematica.org/" },
-  { "name": "Skedulo", "url": "https://www.skedulo.com/" },
-  { "name": "Rife Medical Furniture", "url": "https://rifemedical.in/" },
-  { "name": "Alibaba", "url": "https://www.alibaba.com/" },
-  { "name": "RFID Discovery", "url": "https://www.rfiddiscovery.com/en" },
-  { "name": "Rife Technologies", "url": "https://www.rifeindia.com/" },
-  { "name": "ReadySet Surgical", "url": "https://readysetsurgical.com/" },
-  { "name": "VUEMED", "url": "https://vuemed.com/" },
+  {
+    "name": "Bermuda Hospitals Board",
+    "url": "https://bermudahospitals.bm/"
+  },
+  {
+    "name": "Oxmaint",
+    "url": "https://oxmaint.com/"
+  },
+  {
+    "name": "Mathematica",
+    "url": "https://www.mathematica.org/"
+  },
+  {
+    "name": "Skedulo",
+    "url": "https://www.skedulo.com/"
+  },
+  {
+    "name": "Rife Medical Furniture",
+    "url": "https://rifemedical.in/"
+  },
+  {
+    "name": "Alibaba",
+    "url": "https://www.alibaba.com/"
+  },
+  {
+    "name": "RFID Discovery",
+    "url": "https://www.rfiddiscovery.com/en"
+  },
+  {
+    "name": "Rife Technologies",
+    "url": "https://www.rifeindia.com/"
+  },
+  {
+    "name": "ReadySet Surgical",
+    "url": "https://readysetsurgical.com/"
+  },
+  {
+    "name": "VUEMED",
+    "url": "https://vuemed.com/"
+  },
   {
     "name": "United Poly Engineering Pvt. Ltd",
     "url": "https://www.unitedpoly.com/"
   },
-  { "name": "Illumia", "url": "https://illumiatech.com/" },
-  { "name": "FoodReady", "url": "https://foodready.ai/" },
-  { "name": "iFactory AI", "url": "https://ifactoryapp.com/" },
-  { "name": "Trident Information Systems", "url": "https://tridentinfo.com/" },
-  { "name": "Focus Softnet", "url": "https://www.focussoftnet.com/" },
-  { "name": "MarketSquare Tech", "url": "https://marketsquaretech.com/" },
-  { "name": "BairesDev", "url": "https://www.bairesdev.com/" },
-  { "name": "Chick-fil-A", "url": "https://www.chick-fil-a.com/" },
+  {
+    "name": "Illumia",
+    "url": "https://illumiatech.com/"
+  },
+  {
+    "name": "FoodReady",
+    "url": "https://foodready.ai/"
+  },
+  {
+    "name": "iFactory AI",
+    "url": "https://ifactoryapp.com/"
+  },
+  {
+    "name": "Trident Information Systems",
+    "url": "https://tridentinfo.com/"
+  },
+  {
+    "name": "Focus Softnet",
+    "url": "https://www.focussoftnet.com/"
+  },
+  {
+    "name": "MarketSquare Tech",
+    "url": "https://marketsquaretech.com/"
+  },
+  {
+    "name": "BairesDev",
+    "url": "https://www.bairesdev.com/"
+  },
+  {
+    "name": "Chick-fil-A",
+    "url": "https://www.chick-fil-a.com/"
+  },
   {
     "name": "Contemporary Catering",
     "url": "https://www.contemporarycatering.com.au/"
   },
-  { "name": "Peter Rowland Group", "url": "https://www.peterrowland.com.au/" },
+  {
+    "name": "Peter Rowland Group",
+    "url": "https://www.peterrowland.com.au/"
+  },
   {
     "name": "TOBEN Food by Design Catering",
     "url": "https://www.tobenfoodbydesign.com/"
@@ -231,196 +571,584 @@
     "name": "Founding Farmers",
     "url": "https://www.wearefoundingfarmers.com/"
   },
-  { "name": "Management 3.0", "url": "https://management30.com/" },
+  {
+    "name": "Management 3.0",
+    "url": "https://management30.com/"
+  },
   {
     "name": "United Nations Environment Programme",
     "url": "https://www.unep.org/"
   },
-  { "name": "iFactory AI", "url": "https://ifactoryapp.com/" },
-  { "name": "AMZ Prep", "url": "https://amzprep.com/" },
-  { "name": "Startup Stash", "url": "https://startupstash.com/" },
-  { "name": "Ekklavya", "url": "https://www.eklavya.com/" },
-  { "name": "Glide", "url": "https://www.glideapps.com/" },
-  { "name": "SoftwareSuggest", "url": "https://www.softwaresuggest.com/" },
-  { "name": "RGIS", "url": "https://www.rgis.co.uk/" },
-  { "name": "RGIS", "url": "https://www.rgis.com/" },
-  { "name": "Oxmaint", "url": "https://oxmaint.com/" },
-  { "name": "Zebra Technologies", "url": "https://www.zebra.com/br/pt.html" },
-  { "name": "Daftra Knowledge Base", "url": "https://docs.daftra.com/en/" },
-  { "name": "IDO Electronics", "url": "https://idoelectronics.eu/" },
-  { "name": "Prezi", "url": "https://prezi.com/" },
+  {
+    "name": "iFactory AI",
+    "url": "https://ifactoryapp.com/"
+  },
+  {
+    "name": "AMZ Prep",
+    "url": "https://amzprep.com/"
+  },
+  {
+    "name": "Startup Stash",
+    "url": "https://startupstash.com/"
+  },
+  {
+    "name": "Ekklavya",
+    "url": "https://www.eklavya.com/"
+  },
+  {
+    "name": "Glide",
+    "url": "https://www.glideapps.com/"
+  },
+  {
+    "name": "SoftwareSuggest",
+    "url": "https://www.softwaresuggest.com/"
+  },
+  {
+    "name": "Oxmaint",
+    "url": "https://oxmaint.com/"
+  },
+  {
+    "name": "Zebra Technologies",
+    "url": "https://www.zebra.com/br/pt.html"
+  },
+  {
+    "name": "Daftra Knowledge Base",
+    "url": "https://docs.daftra.com/en/"
+  },
+  {
+    "name": "IDO Electronics",
+    "url": "https://idoelectronics.eu/"
+  },
+  {
+    "name": "Prezi",
+    "url": "https://prezi.com/"
+  },
   {
     "name": "Apple Support",
     "url": "https://support.apple.com/en-om/guide/watch/apddad023a05/watchos"
   },
-  { "name": "Grayline Medical", "url": "https://www.graylinemedical.com/" },
+  {
+    "name": "Grayline Medical",
+    "url": "https://www.graylinemedical.com/"
+  },
   {
     "name": "Supply Agency of the European Atomic Energy Community",
     "url": "https://euratom-supply.ec.europa.eu/index_en"
   },
-  { "name": "Evolinq", "url": "https://evolinq.io/" },
+  {
+    "name": "Evolinq",
+    "url": "https://evolinq.io/"
+  },
   {
     "name": "ILOS - Especialistas em Logística e Supply Chain",
     "url": "https://ilos.com.br/"
   },
-  { "name": "Supply Nation", "url": "https://supplynation.org.au/" },
-  { "name": "Infor", "url": "https://www.infor.com/pt-br" },
-  { "name": "SupplyChainBrain", "url": "https://www.supplychainbrain.com/" },
-  { "name": "Upper", "url": "https://www.upperinc.com/" },
-  { "name": "Cleveland Clinic", "url": "https://my.clevelandclinic.org/" },
-  { "name": "Rife Medical Furniture", "url": "https://rifemedical.in/" },
-  { "name": "nhs.uk", "url": "https://www.nhs.uk/" },
+  {
+    "name": "Supply Nation",
+    "url": "https://supplynation.org.au/"
+  },
+  {
+    "name": "Infor",
+    "url": "https://www.infor.com/pt-br"
+  },
+  {
+    "name": "SupplyChainBrain",
+    "url": "https://www.supplychainbrain.com/"
+  },
+  {
+    "name": "Upper",
+    "url": "https://www.upperinc.com/"
+  },
+  {
+    "name": "Cleveland Clinic",
+    "url": "https://my.clevelandclinic.org/"
+  },
+  {
+    "name": "Rife Medical Furniture",
+    "url": "https://rifemedical.in/"
+  },
+  {
+    "name": "nhs.uk",
+    "url": "https://www.nhs.uk/"
+  },
   {
     "name": "CT.gov - Connecticut's Official State Website",
     "url": "https://portal.ct.gov/"
   },
-  { "name": "Alamy", "url": "https://www.alamy.com/" },
-  { "name": "DVIDS", "url": "https://www.dvidshub.net/" },
-  { "name": "EU SST", "url": "https://www.eusst.eu/" },
-  { "name": "Restaurant365", "url": "https://www.restaurant365.com/" },
-  { "name": "Rivio", "url": "https://rivio.io/" },
-  { "name": "Epos Now", "url": "https://www.eposnow.com/uk/" },
-  { "name": "Garden of Echo", "url": "https://6garden.wordpress.com/" },
-  { "name": "TrufflePOS", "url": "https://trufflesystems.io/" },
-  { "name": "Jotform", "url": "https://www.jotform.com/" },
-  { "name": "Coefficient", "url": "https://coefficient.io/" },
-  { "name": "TotalCtrl", "url": "https://totalctrl.com/" },
+  {
+    "name": "Alamy",
+    "url": "https://www.alamy.com/"
+  },
+  {
+    "name": "DVIDS",
+    "url": "https://www.dvidshub.net/"
+  },
+  {
+    "name": "EU SST",
+    "url": "https://www.eusst.eu/"
+  },
+  {
+    "name": "Restaurant365",
+    "url": "https://www.restaurant365.com/"
+  },
+  {
+    "name": "Rivio",
+    "url": "https://rivio.io/"
+  },
+  {
+    "name": "Epos Now",
+    "url": "https://www.eposnow.com/uk/"
+  },
+  {
+    "name": "Garden of Echo",
+    "url": "https://6garden.wordpress.com/"
+  },
+  {
+    "name": "TrufflePOS",
+    "url": "https://trufflesystems.io/"
+  },
+  {
+    "name": "Jotform",
+    "url": "https://www.jotform.com/"
+  },
+  {
+    "name": "Coefficient",
+    "url": "https://coefficient.io/"
+  },
+  {
+    "name": "TotalCtrl",
+    "url": "https://totalctrl.com/"
+  },
   {
     "name": "Collection & Inventory Tracker",
     "url": "https://www.collectioninventory.app/"
   },
-  { "name": "Orbit Healthcare", "url": "https://orbit.healthcare/" },
+  {
+    "name": "Orbit Healthcare",
+    "url": "https://orbit.healthcare/"
+  },
   {
     "name": "Spacesaver Storage Solutions",
     "url": "https://www.spacesaverva.com/"
   },
-  { "name": "BeBee", "url": "https://bebee.com/br" },
-  { "name": "CDS Ship Chandler", "url": "https://www.cmrshipchandling.com/" },
-  { "name": "EthiopiaRFP", "url": "https://www.ethiopiarfp.com/" },
-  { "name": "Foodbuy", "url": "https://www.foodbuy.com/" },
-  { "name": "Merak Tech", "url": "https://almerak.com/" },
-  { "name": "Symphony", "url": "https://www.boonsoftware.com/" },
-  { "name": "Zebra Technologies", "url": "https://www.zebra.com/br/pt.html" },
-  { "name": "Strange Horizons", "url": "https://strangehorizons.com/" },
-  { "name": "US EPA", "url": "https://www.epa.gov/" },
+  {
+    "name": "BeBee",
+    "url": "https://bebee.com/br"
+  },
+  {
+    "name": "CDS Ship Chandler",
+    "url": "https://www.cmrshipchandling.com/"
+  },
+  {
+    "name": "EthiopiaRFP",
+    "url": "https://www.ethiopiarfp.com/"
+  },
+  {
+    "name": "Foodbuy",
+    "url": "https://www.foodbuy.com/"
+  },
+  {
+    "name": "Merak Tech",
+    "url": "https://almerak.com/"
+  },
+  {
+    "name": "Symphony",
+    "url": "https://www.boonsoftware.com/"
+  },
+  {
+    "name": "Zebra Technologies",
+    "url": "https://www.zebra.com/br/pt.html"
+  },
+  {
+    "name": "Strange Horizons",
+    "url": "https://strangehorizons.com/"
+  },
+  {
+    "name": "US EPA",
+    "url": "https://www.epa.gov/"
+  },
   {
     "name": "Departamento Nacional de Infraestrutura de Transportes",
     "url": "https://www.gov.br/dnit/pt-br"
   },
-  { "name": "Inventory Press", "url": "https://www.inventorypress.com/" },
-  { "name": "Zoho", "url": "https://www.zoho.com/pt-br/?sredirect=true" },
-  { "name": "eXPD8", "url": "https://www.expd8.co.uk/" },
-  { "name": "Jump Technologies", "url": "https://inventorytruth.com/" },
-  { "name": "Sapiens", "url": "https://sapiensinfo.com/" },
-  { "name": "VUEMED", "url": "https://vuemed.com/" },
+  {
+    "name": "Inventory Press",
+    "url": "https://www.inventorypress.com/"
+  },
+  {
+    "name": "Zoho",
+    "url": "https://www.zoho.com/pt-br/?sredirect=true"
+  },
+  {
+    "name": "eXPD8",
+    "url": "https://www.expd8.co.uk/"
+  },
+  {
+    "name": "Jump Technologies",
+    "url": "https://inventorytruth.com/"
+  },
+  {
+    "name": "Sapiens",
+    "url": "https://sapiensinfo.com/"
+  },
+  {
+    "name": "VUEMED",
+    "url": "https://vuemed.com/"
+  },
   {
     "name": "Let's Pretend Catering",
     "url": "https://letspretendcatering.com/"
   },
-  { "name": "Chick-fil-A", "url": "https://www.chick-fil-a.com/" },
+  {
+    "name": "Chick-fil-A",
+    "url": "https://www.chick-fil-a.com/"
+  },
   {
     "name": "Contemporary Catering",
     "url": "https://www.contemporarycatering.com.au/"
   },
-  { "name": "Peter Rowland Group", "url": "https://www.peterrowland.com.au/" },
+  {
+    "name": "Peter Rowland Group",
+    "url": "https://www.peterrowland.com.au/"
+  },
   {
     "name": "Founding Farmers",
     "url": "https://www.wearefoundingfarmers.com/"
   },
-  { "name": "CheckThat.ai", "url": "https://checkthat.ai/" },
+  {
+    "name": "CheckThat.ai",
+    "url": "https://checkthat.ai/"
+  },
   {
     "name": "Pro Chef Kitchen Tools",
     "url": "https://prochefkitchentools.com/"
   },
-  { "name": "MarketMan", "url": "https://www.marketman.com/" },
-  { "name": "Fedserv", "url": "https://fedservffm.co.za/" },
-  { "name": "Management 3.0", "url": "https://management30.com/" },
-  { "name": "Bureau of Land Management", "url": "https://www.blm.gov/" },
+  {
+    "name": "MarketMan",
+    "url": "https://www.marketman.com/"
+  },
+  {
+    "name": "Fedserv",
+    "url": "https://fedservffm.co.za/"
+  },
+  {
+    "name": "Management 3.0",
+    "url": "https://management30.com/"
+  },
+  {
+    "name": "Bureau of Land Management",
+    "url": "https://www.blm.gov/"
+  },
   {
     "name": "Dalhousie University",
     "url": "https://www.dal.ca/faculty/management.html"
   },
-  { "name": "Lancaster University", "url": "https://www.lancaster.ac.uk/" },
-  { "name": "TechnologyCounter", "url": "https://technologycounter.com/" },
-  { "name": "TrufflePOS", "url": "https://trufflesystems.io/" },
-  { "name": "Eats365", "url": "https://www.eats365pos.com/" },
-  { "name": "Lightspeed", "url": "https://www.lightspeedhq.com/" },
-  { "name": "the Restaurant Resource Group", "url": "https://ezchef.com/" },
-  { "name": "Apicbase", "url": "https://get.apicbase.com/" },
-  { "name": "Square", "url": "https://squareup.com/us/en" },
-  { "name": "Kitchen Stocker", "url": "https://www.kitchenstocker.com/" },
-  { "name": "MarketMan", "url": "https://www.marketman.com/" },
-  { "name": "Softr", "url": "https://www.softr.io/" },
-  { "name": "WISK", "url": "https://www.wisk.ai/" },
-  { "name": "barKoder Ltd.", "url": "https://barkoder.com/" },
-  { "name": "growyze", "url": "https://www.growyze.com/" },
-  { "name": "WeTransfer", "url": "https://wetransfer.com/" },
-  { "name": "Elo", "url": "https://www.elo.com.br/" },
+  {
+    "name": "Lancaster University",
+    "url": "https://www.lancaster.ac.uk/"
+  },
+  {
+    "name": "TechnologyCounter",
+    "url": "https://technologycounter.com/"
+  },
+  {
+    "name": "TrufflePOS",
+    "url": "https://trufflesystems.io/"
+  },
+  {
+    "name": "Eats365",
+    "url": "https://www.eats365pos.com/"
+  },
+  {
+    "name": "Lightspeed",
+    "url": "https://www.lightspeedhq.com/"
+  },
+  {
+    "name": "the Restaurant Resource Group",
+    "url": "https://ezchef.com/"
+  },
+  {
+    "name": "Apicbase",
+    "url": "https://get.apicbase.com/"
+  },
+  {
+    "name": "Square",
+    "url": "https://squareup.com/us/en"
+  },
+  {
+    "name": "Kitchen Stocker",
+    "url": "https://www.kitchenstocker.com/"
+  },
+  {
+    "name": "MarketMan",
+    "url": "https://www.marketman.com/"
+  },
+  {
+    "name": "Softr",
+    "url": "https://www.softr.io/"
+  },
+  {
+    "name": "WISK",
+    "url": "https://www.wisk.ai/"
+  },
+  {
+    "name": "barKoder Ltd.",
+    "url": "https://barkoder.com/"
+  },
+  {
+    "name": "growyze",
+    "url": "https://www.growyze.com/"
+  },
+  {
+    "name": "WeTransfer",
+    "url": "https://wetransfer.com/"
+  },
+  {
+    "name": "Elo",
+    "url": "https://www.elo.com.br/"
+  },
   {
     "name": "European Payments Council",
     "url": "https://www.europeanpaymentscouncil.eu/"
   },
-  { "name": "TransferNow", "url": "https://www.transfernow.net/en" },
-  { "name": "Veterans Affairs", "url": "https://www.va.gov/" },
+  {
+    "name": "TransferNow",
+    "url": "https://www.transfernow.net/en"
+  },
+  {
+    "name": "Veterans Affairs",
+    "url": "https://www.va.gov/"
+  },
   {
     "name": "Warner Pacific University",
     "url": "https://www.warnerpacific.edu/"
   },
-  { "name": "Xero", "url": "https://www.xero.com/" },
-  { "name": "iFactory AI", "url": "https://ifactoryapp.com/" },
-  { "name": "RBOmnishore", "url": "https://rb-omnishore.de/" },
-  { "name": "Green Climate Fund", "url": "https://www.greenclimate.fund/" },
+  {
+    "name": "Xero",
+    "url": "https://www.xero.com/"
+  },
+  {
+    "name": "iFactory AI",
+    "url": "https://ifactoryapp.com/"
+  },
+  {
+    "name": "RBOmnishore",
+    "url": "https://rb-omnishore.de/"
+  },
+  {
+    "name": "Green Climate Fund",
+    "url": "https://www.greenclimate.fund/"
+  },
   {
     "name": "Los Angeles Department of Water and Power",
     "url": "https://www.ladwp.com/"
   },
-  { "name": "Jotform", "url": "https://www.jotform.com/" },
-  { "name": "Softr", "url": "https://www.softr.io/" },
-  { "name": "Apple Developer", "url": "https://developer.apple.com/" },
-  { "name": "Daftra Knowledge Base", "url": "https://docs.daftra.com/en/" },
-  { "name": "American Kennel Club, Inc.", "url": "https://www.akc.org/" },
-  { "name": "ReFED", "url": "https://refed.org/" },
-  { "name": "CGI Inc.", "url": "https://www.cgi.com/en" },
-  { "name": "ERPmaster", "url": "https://erpmaster.io/" },
-  { "name": "Goodsource Solutions", "url": "https://goodsource.com/" },
-  { "name": "ReAnIn", "url": "https://www.reanin.com/" },
-  { "name": "Simbe", "url": "https://www.simberobotics.com/" },
-  { "name": "Vusion", "url": "https://www.vusion.com/" },
-  { "name": "Labelbox", "url": "https://labelbox.com/" },
-  { "name": "Linkitsoft", "url": "https://linkitsoft.com/" },
-  { "name": "Seaga Manufacturing Inc", "url": "https://seaga.com/" },
-  { "name": "DTF GENETICS", "url": "https://dtfseeds.com/" },
-  { "name": "iFactory AI", "url": "https://ifactoryapp.com/" },
-  { "name": "IndX", "url": "https://indx.com/" },
+  {
+    "name": "Jotform",
+    "url": "https://www.jotform.com/"
+  },
+  {
+    "name": "Softr",
+    "url": "https://www.softr.io/"
+  },
+  {
+    "name": "Apple Developer",
+    "url": "https://developer.apple.com/"
+  },
+  {
+    "name": "Daftra Knowledge Base",
+    "url": "https://docs.daftra.com/en/"
+  },
+  {
+    "name": "American Kennel Club, Inc.",
+    "url": "https://www.akc.org/"
+  },
+  {
+    "name": "ReFED",
+    "url": "https://refed.org/"
+  },
+  {
+    "name": "CGI Inc.",
+    "url": "https://www.cgi.com/en"
+  },
+  {
+    "name": "ERPmaster",
+    "url": "https://erpmaster.io/"
+  },
+  {
+    "name": "Goodsource Solutions",
+    "url": "https://goodsource.com/"
+  },
+  {
+    "name": "ReAnIn",
+    "url": "https://www.reanin.com/"
+  },
+  {
+    "name": "Simbe",
+    "url": "https://www.simberobotics.com/"
+  },
+  {
+    "name": "Vusion",
+    "url": "https://www.vusion.com/"
+  },
+  {
+    "name": "Labelbox",
+    "url": "https://labelbox.com/"
+  },
+  {
+    "name": "Linkitsoft",
+    "url": "https://linkitsoft.com/"
+  },
+  {
+    "name": "Seaga Manufacturing Inc",
+    "url": "https://seaga.com/"
+  },
+  {
+    "name": "DTF GENETICS",
+    "url": "https://dtfseeds.com/"
+  },
+  {
+    "name": "iFactory AI",
+    "url": "https://ifactoryapp.com/"
+  },
+  {
+    "name": "IndX",
+    "url": "https://indx.com/"
+  },
   {
     "name": "Publications Office of the EU",
     "url": "https://op.europa.eu/en/home"
   },
-  { "name": "P2 Programs", "url": "https://p2programs.com/" },
-  { "name": "Vimeo", "url": "https://vimeo.com/" },
-  { "name": "PIPRA Solutions", "url": "https://www.pipra.solutions/" },
-  { "name": "SciSure", "url": "https://www.scisure.com/" },
+  {
+    "name": "P2 Programs",
+    "url": "https://p2programs.com/"
+  },
+  {
+    "name": "Vimeo",
+    "url": "https://vimeo.com/"
+  },
+  {
+    "name": "PIPRA Solutions",
+    "url": "https://www.pipra.solutions/"
+  },
+  {
+    "name": "SciSure",
+    "url": "https://www.scisure.com/"
+  },
   {
     "name": "Hoffmann Group | Go Digital Store",
     "url": "https://digital.hoffmann-group.com/de-DE/"
   },
-  { "name": "AllrideApps", "url": "https://www.allrideapps.com/" },
-  { "name": "Teknisa", "url": "https://www.teknisa.com/" },
-  { "name": "Homepage der TIS GmbH", "url": "https://www.tis-gmbh.de/en/" },
-  { "name": "Shopify Community", "url": "https://community.shopify.com/" },
-  { "name": "Canopy", "url": "https://www.gocanopy.com/" },
-  { "name": "RXinsider", "url": "https://rxinsider.com/" },
-  { "name": "Bucci Industries", "url": "https://www.bucci-industries.com/" },
+  {
+    "name": "AllrideApps",
+    "url": "https://www.allrideapps.com/"
+  },
+  {
+    "name": "Teknisa",
+    "url": "https://www.teknisa.com/"
+  },
+  {
+    "name": "Homepage der TIS GmbH",
+    "url": "https://www.tis-gmbh.de/en/"
+  },
+  {
+    "name": "Shopify Community",
+    "url": "https://community.shopify.com/"
+  },
+  {
+    "name": "Canopy",
+    "url": "https://www.gocanopy.com/"
+  },
+  {
+    "name": "RXinsider",
+    "url": "https://rxinsider.com/"
+  },
+  {
+    "name": "Bucci Industries",
+    "url": "https://www.bucci-industries.com/"
+  },
   {
     "name": "Research And Markets",
     "url": "https://www.researchandmarkets.com/"
   },
-  { "name": "Sinteco", "url": "https://www.sintecorobotics.com/" },
-  { "name": "US EPA", "url": "https://www.epa.gov/" },
-  { "name": "Odoo", "url": "https://www.odoo.com/" },
-  { "name": "Zebra Technologies", "url": "https://www.zebra.com/br/pt.html" },
-  { "name": "Hospital Times", "url": "https://hospitaltimes.co.uk/" },
-  { "name": "RoboPharma", "url": "https://robopharma.nl/" },
-  { "name": "SARU TECH", "url": "https://sarutech.com/" },
-  { "name": "SlideTeam", "url": "https://www.slideteam.net/" }
+  {
+    "name": "Sinteco",
+    "url": "https://www.sintecorobotics.com/"
+  },
+  {
+    "name": "US EPA",
+    "url": "https://www.epa.gov/"
+  },
+  {
+    "name": "Odoo",
+    "url": "https://www.odoo.com/"
+  },
+  {
+    "name": "Zebra Technologies",
+    "url": "https://www.zebra.com/br/pt.html"
+  },
+  {
+    "name": "Hospital Times",
+    "url": "https://hospitaltimes.co.uk/"
+  },
+  {
+    "name": "RoboPharma",
+    "url": "https://robopharma.nl/"
+  },
+  {
+    "name": "SARU TECH",
+    "url": "https://sarutech.com/"
+  },
+  {
+    "name": "absolutevalue",
+    "url": "https://www.absolutevalue-us.com"
+  },
+  {
+    "name": "aksulit",
+    "url": "https://aksulit.com"
+  },
+  {
+    "name": "cirrustech",
+    "url": "https://www.cirrustech.com"
+  },
+  {
+    "name": "inpulse",
+    "url": "https://www.inpulse.ai/en"
+  },
+  {
+    "name": "demandsoft",
+    "url": "https://www.demandsoft.de/en/"
+  },
+  {
+    "name": "foodready",
+    "url": "https://foodready.ai"
+  },
+  {
+    "name": "gefox",
+    "url": "https://gefox.com.br"
+  },
+  {
+    "name": "merchmix",
+    "url": "https://merchmix.co"
+  },
+  {
+    "name": "rebulk",
+    "url": "https://rebulk.com"
+  },
+  {
+    "name": "repleno",
+    "url": "https://repleno.com/en"
+  },
+  {
+    "name": "suflex",
+    "url": "https://suflex.com.br"
+  },
+  {
+    "name": "vstech",
+    "url": "https://vstech.com"
+  },
+  {
+    "name": "SlideTeam",
+    "url": "https://www.slideteam.net/"
+  }
 ]
