@@ -422,5 +422,17 @@
   { "name": "Hospital Times", "url": "https://hospitaltimes.co.uk/" },
   { "name": "RoboPharma", "url": "https://robopharma.nl/" },
   { "name": "SARU TECH", "url": "https://sarutech.com/" },
+  { "name": "absolutevalue", "url": "https://www.absolutevalue-us.com" },
+  { "name": "aksulit", "url": "https://aksulit.com" },
+  { "name": "cirrustech", "url": "https://www.cirrustech.com" },
+  { "name": "inpulse", "url": "https://www.inpulse.ai/en" },
+  { "name": "demandsoft", "url": "https://www.demandsoft.de/en/" },
+  { "name": "foodready", "url": "https://foodready.ai" },
+  { "name": "gefox", "url": "https://gefox.com.br" },
+  { "name": "merchmix", "url": "https://merchmix.co" },
+  { "name": "rebulk", "url": "https://rebulk.com" },
+  { "name": "repleno", "url": "https://repleno.com/en" },
+  { "name": "suflex", "url": "https://suflex.com.br" },
+  { "name": "vstech", "url": "https://vstech.com" },
   { "name": "SlideTeam", "url": "https://www.slideteam.net/" }
 ]
