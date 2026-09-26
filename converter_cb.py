@@ -1,7 +1,7 @@
 import csv
 
 file_name = "digital_twins"
-modo = 2
+modo = 1
 threshold = 70.0
 subscore_threshold = 30.0
 
