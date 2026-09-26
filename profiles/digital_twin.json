@@ -1,55 +1,54 @@
 {
   "profile_schema_version": 1,
   "id": "digital_twin",
-  "version": "2.0.0",
-  "name": "Digital twin candidate screening",
-  "description": "Permissive evidence-based screening for organizations offering digital twins or plausible individualized virtual counterparts; the fit score prioritizes candidates for human review and is not certification of a fully synchronized digital twin.",
-  "instruction": "Assess the product or technology described in the supplied evidence. Score the strength of positive evidence for each question, including clearly described capabilities even when implementation details are omitted. Do not infer an unsupported capability from the company name or a digital-twin label alone. Treat silence as insufficient evidence, not as proof the capability is absent. Distinguish a generic simulator from a model connected to a particular real-world counterpart. Scores indicate screening relevance, not proof of a complete digital twin.",
+  "version": "1.0.0",
+  "name": "Digital twin adherence",
+  "description": "Measures how strongly the supplied evidence supports the functional characteristics of a digital twin.",
+  "instruction": "Judge only capabilities explicitly supported by the supplied evidence.",
   "criteria": [
     {
       "id": "specific_counterpart",
       "role": "core",
-      "weight": 2.0,
-      "instructions": "Is there evidence that the virtual model represents a particular real-world patient, organ, device, asset, facility, or process, or a clearly described product capability to instantiate a model for each such counterpart? A generic population model or unpersonalized simulator alone is insufficient. Do not require an individual identifier to be publicly disclosed."
+      "weight": 1.0,
+      "instructions": "Does the evidence clearly show a digital representation of one specific, identifiable physical or biological counterpart, rather than a generic model?"
     },
     {
       "id": "individualized_data_link",
       "role": "core",
-      "weight": 2.0,
-      "instructions": "Does the product use measurements, records, scans, operational telemetry, or other data from a particular real-world counterpart to initialize, personalize, calibrate, or update its corresponding virtual representation? A described capability counts even when API and integration details are not public; generic training data alone does not."
+      "weight": 1.0,
+      "instructions": "Does measured data from that specific counterpart initialize or personalize its corresponding model?"
     },
     {
       "id": "repeated_synchronization",
       "role": "core",
-      "weight": 0.5,
-      "instructions": "Is there evidence that the same counterpart model can be refreshed when new observations become available, whether periodically, on demand, or continuously? Continuous real-time connectivity is not required. A single initial calibration without subsequent updates is weaker evidence; lack of public implementation details is uncertainty rather than proof of absence."
+      "weight": 1.0,
+      "instructions": "Is the virtual representation repeatedly updated with new data from the same real-world counterpart?"
     },
     {
       "id": "simulation_prediction",
       "role": "core",
-      "weight": 2.0,
-      "instructions": "Does the counterpart-linked virtual representation simulate scenarios, predict outcomes or behavior, compare interventions, or support decisions about that counterpart? Generic simulation without a counterpart link is weaker evidence for this question."
+      "weight": 1.0,
+      "instructions": "Does the virtual representation simulate scenarios, predict outcomes, or evaluate interventions?"
     },
     {
       "id": "self_claim",
-      "role": "core",
-      "weight": 0.5,
-      "instructions": "Does the company explicitly describe the relevant product or technology as a digital twin or digital twins? Score a genuine product-level claim positively but do not treat the label alone as proof that the technical capabilities in the other criteria exist."
+      "role": "auxiliary",
+      "threshold": 0.7,
+      "instructions": "Does the company explicitly call this product or technology a digital twin?"
     },
     {
       "id": "enabling_technology",
       "role": "auxiliary",
-      "instructions": "Does the evidence show a digital-twin enabling component, such as modeling, simulation, sensing, or data integration, even if a counterpart-linked product is not demonstrated? This is contextual information and does not by itself establish digital-twin fit."
+      "instructions": "Even if a complete digital twin is not evidenced, is this clearly an enabling component such as virtual modeling, simulation, sensing, or data integration?"
     }
   ],
   "evidence_aggregation": {
     "method": "top_weighted",
-    "top_weights": [
-      0.8,
-      0.2
-    ]
+    "top_weights": [0.6, 0.25, 0.15]
   },
   "score_aggregation": {
-    "method": "weighted_mean"
+    "method": "weighted_geometric_bottleneck",
+    "geometric_weight": 0.6,
+    "bottleneck_weight": 0.4
   }
 }
