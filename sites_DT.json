@@ -1,78 +1,290 @@
 [
-  {"name": "Basgenbio", "url": "https://basgenbio.com/en/"},
-  {"name": "Pumas-AI", "url": "https://pumas.ai"},
-  {"name": "Opyl", "url": "https://opyl.netlify.app"},
-  {"name": "NetTargets", "url": "https://www.net-targets.com"},
-  {"name": "VirtualMan", "url": "https://virtualman.ai"},
-  {"name": "Netabolics", "url": "https://netabolics.ai"},
-  {"name": "InSilicoMinds", "url": "https://insilicominds.com"},
-  {"name": "Simmunome", "url": "https://www.simmunome.com"},
-  {"name": "Bioleap", "url": "https://www.bioleap.ai"},
-  {"name": "Ingenix", "url": "https://ingenix.ai"},
-  {"name": "Fathomtx", "url": "https://www.fathomtx.com"},
-  {"name": "Tresalchemix", "url": "https://www.tresalchemix.com"},
-  {"name": "A2-AI", "url": "https://a2-ai.com"},
-  {"name": "Intellaif", "url": "https://www.intellaif.com"},
-  {"name": "Thoth BioSimulations", "url": "https://www.thothbiosimulations.ca"},
-  {"name": "biosimulytics", "url": "https://www.biosimulytics.com"},
-  {"name": "biomedsimulation", "url": "https://www.biomedsimulation.com"},
-  {"name": "biomia", "url": "https://www.biomia.com"},
-  {"name": "simtx", "url": "http://bsimtx.com"},
-  {"name": "vanheronlabs", "url": "https://vanheronlabs.com"},
-  {"name": "skairos", "url": "https://skairos.io"},
-  {"name": "diagnoz", "url": "https://www.diagnoz.ai"},
-  {"name": "cytocast", "url": "https://cytocast.com"},
-  {"name": "safeats", "url": "https://www.safeats.fr/?lang=en"},
-  {"name": "biafo", "url": "https://www.biafo.ai"},
-  {"name": "nexithera", "url": "https://www.nexithera.com"},
-  {"name": "canchentech", "url": "https://canchentech.com"},
-  {"name": "eonflow", "url": "https://eonflow.bio/en/"},
-  {"name": "avatarsbio", "url": "https://avatarsbio.com"},
-  {"name": "novasign", "url": "https://novasign.at"},
-  {"name": "embody", "url": "https://www.embody.bio"},
-  {"name": "removirt", "url": "https://www.removirt.es/en/"},
-  {"name": "xbxbio", "url": "https://www.xbxbio.com"},
-  {"name": "corcillum", "url": "https://www.corcillum.com.au"},
-  {"name": "cellgebra", "url": "https://www.cellgebra.com"},
-  {"name": "virtualbraintech", "url": "https://www.virtualbraintech.com"},
-  {"name": "nbmed", "url": "https://nbmed-inc.com"},
-  {"name": "brainboostxr", "url": "https://www.brainboostxr.com"},
-  {"name": "ventcreativity", "url": "https://www.ventcreativity.com"},
-  {"name": "coredio", "url": "https://www.coredio-ai.com"},
-  {"name": "cardiotwin", "url": "https://www.cardiotwin.clinic"},
-  {"name": "depth", "url": "https://www.depth.ai"},
-  {"name": "twynova", "url": "https://twynova.com"},
-  {"name": "virtonomy", "url": "https://www.virtonomy.io"},
-  {"name": "beatlab", "url": "https://beatlab.se"},
-  {"name": "fulcrumneuro", "url": "https://www.fulcrumneuro.com"},
-  {"name": "integratome", "url": "https://integratome.com"},
-  {"name": "edith", "url": "https://www.edith-csa.eu"},
-  {"name": "mytwin", "url": "https://mytwin.care/en"},
-  {"name": "cellverse", "url": "https://www.cellverse.org"},
-  {"name": "embodyxr", "url": "https://embodyxr.com"},
-  {"name": "twinsight", "url": "https://twinsight-medical.com/services-en/"},
-  {"name": "avatarsuisse", "url": "https://avatarsuisse.com/en/"},
-  {"name": "theranetrix", "url": "https://theranetrix.com"},
-  {"name": "ontomorph", "url": "https://ontomorph.com"},
-  {"name": "neuroteg", "url": "https://neuroteg.com"},
-  {"name": "osora", "url": "https://osora.de"},
-  {"name": "insilicare", "url": "https://insilicare.com"},
-  {"name": "nuraxi", "url": "https://nuraxi.ai"},
-  {"name": "lxr", "url": "https://l-x-r.com"},
-  {"name": "mutanex", "url": "https://mutanex.com"},
-  {"name": "mydigitaltwin", "url": "https://www.mydigitaltwin.at"},
-  {"name": "homox", "url": "https://homox.io"},
-  {"name": "healthycity", "url": "https://www.healthycity.it"},
-  {"name": "twinhealth", "url": "https://twinhealth.com/"},
-  {"name": "quanthealth", "url": "https://quanthealth.ai/"},
-  {"name": "deeplife", "url": "https://deeplife.co/"},
-  {"name": "dasisim", "url": "https://dasisim.ai/"},
-  {"name": "valinordiscovery", "url": "https://valinordiscovery.com/"},
-  {"name": "mantislabs", "url": "https://mantislabs.com/"},
-  {"name": "geodaisics", "url": "https://geodaisics.com/"},
-  {"name": "ebenbuild", "url": "https://ebenbuild.com/"},
-  {"name": "mdsim", "url": "https://mdsim.net/"},
-  {"name": "theorahq", "url": "https://theorahq.com/"},
-  {"name": "aibody", "url": "https://aibody.io/"},
-  {"name": "deepkinetix", "url": "https://deepkinetix.com/"}
+  {
+    "name": "Basgenbio",
+    "url": "https://basgenbio.com/en/"
+  },
+  {
+    "name": "Pumas-AI",
+    "url": "https://pumas.ai"
+  },
+  {
+    "name": "Opyl",
+    "url": "https://opyl.netlify.app"
+  },
+  {
+    "name": "NetTargets",
+    "url": "https://www.net-targets.com"
+  },
+  {
+    "name": "VirtualMan",
+    "url": "https://virtualman.ai"
+  },
+  {
+    "name": "Netabolics",
+    "url": "https://netabolics.ai"
+  },
+  {
+    "name": "InSilicoMinds",
+    "url": "https://insilicominds.com"
+  },
+  {
+    "name": "Simmunome",
+    "url": "https://www.simmunome.com"
+  },
+  {
+    "name": "Bioleap",
+    "url": "https://www.bioleap.ai"
+  },
+  {
+    "name": "Ingenix",
+    "url": "https://ingenix.ai"
+  },
+  {
+    "name": "Fathomtx",
+    "url": "https://www.fathomtx.com"
+  },
+  {
+    "name": "Tresalchemix",
+    "url": "https://www.tresalchemix.com"
+  },
+  {
+    "name": "A2-AI",
+    "url": "https://a2-ai.com"
+  },
+  {
+    "name": "Intellaif",
+    "url": "https://www.intellaif.com"
+  },
+  {
+    "name": "Thoth BioSimulations",
+    "url": "https://www.thothbiosimulations.ca"
+  },
+  {
+    "name": "biosimulytics",
+    "url": "https://www.biosimulytics.com"
+  },
+  {
+    "name": "biomedsimulation",
+    "url": "https://www.biomedsimulation.com"
+  },
+  {
+    "name": "biomia",
+    "url": "https://www.biomia.com"
+  },
+  {
+    "name": "simtx",
+    "url": "http://bsimtx.com"
+  },
+  {
+    "name": "vanheronlabs",
+    "url": "https://vanheronlabs.com"
+  },
+  {
+    "name": "skairos",
+    "url": "https://skairos.io"
+  },
+  {
+    "name": "diagnoz",
+    "url": "https://www.diagnoz.ai"
+  },
+  {
+    "name": "cytocast",
+    "url": "https://cytocast.com"
+  },
+  {
+    "name": "safeats",
+    "url": "https://www.safeats.fr/?lang=en"
+  },
+  {
+    "name": "biafo",
+    "url": "https://www.biafo.ai"
+  },
+  {
+    "name": "nexithera",
+    "url": "https://www.nexithera.com"
+  },
+  {
+    "name": "canchentech",
+    "url": "https://canchentech.com"
+  },
+  {
+    "name": "eonflow",
+    "url": "https://eonflow.bio/en/"
+  },
+  {
+    "name": "avatarsbio",
+    "url": "https://avatarsbio.com"
+  },
+  {
+    "name": "novasign",
+    "url": "https://novasign.at"
+  },
+  {
+    "name": "embody",
+    "url": "https://www.embody.bio"
+  },
+  {
+    "name": "removirt",
+    "url": "https://www.removirt.es/en/"
+  },
+  {
+    "name": "xbxbio",
+    "url": "https://www.xbxbio.com"
+  },
+  {
+    "name": "corcillum",
+    "url": "https://www.corcillum.com.au"
+  },
+  {
+    "name": "cellgebra",
+    "url": "https://www.cellgebra.com"
+  },
+  {
+    "name": "virtualbraintech",
+    "url": "https://www.virtualbraintech.com"
+  },
+  {
+    "name": "nbmed",
+    "url": "https://nbmed-inc.com"
+  },
+  {
+    "name": "brainboostxr",
+    "url": "https://www.brainboostxr.com"
+  },
+  {
+    "name": "ventcreativity",
+    "url": "https://www.ventcreativity.com"
+  },
+  {
+    "name": "coredio",
+    "url": "https://www.coredio-ai.com"
+  },
+  {
+    "name": "cardiotwin",
+    "url": "https://www.cardiotwin.clinic"
+  },
+  {
+    "name": "depth",
+    "url": "https://www.depth.ai"
+  },
+  {
+    "name": "twynova",
+    "url": "https://twynova.com"
+  },
+  {
+    "name": "virtonomy",
+    "url": "https://www.virtonomy.io"
+  },
+  {
+    "name": "beatlab",
+    "url": "https://beatlab.se"
+  },
+  {
+    "name": "fulcrumneuro",
+    "url": "https://www.fulcrumneuro.com"
+  },
+  {
+    "name": "integratome",
+    "url": "https://integratome.com"
+  },
+  {
+    "name": "edith",
+    "url": "https://www.edith-csa.eu"
+  },
+  {
+    "name": "mytwin",
+    "url": "https://mytwin.care/en"
+  },
+  {
+    "name": "cellverse",
+    "url": "https://www.cellverse.org"
+  },
+  {
+    "name": "embodyxr",
+    "url": "https://embodyxr.com"
+  },
+  {
+    "name": "twinsight",
+    "url": "https://twinsight-medical.com/services-en/"
+  },
+  {
+    "name": "avatarsuisse",
+    "url": "https://avatarsuisse.com/en/"
+  },
+  {
+    "name": "theranetrix",
+    "url": "https://theranetrix.com"
+  },
+  {
+    "name": "neuroteg",
+    "url": "https://neuroteg.com"
+  },
+  {
+    "name": "osora",
+    "url": "https://osora.de"
+  },
+  {
+    "name": "insilicare",
+    "url": "https://insilicare.com"
+  },
+  {
+    "name": "nuraxi",
+    "url": "https://nuraxi.ai"
+  },
+  {
+    "name": "lxr",
+    "url": "https://l-x-r.com"
+  },
+  {
+    "name": "mutanex",
+    "url": "https://mutanex.com"
+  },
+  {
+    "name": "mydigitaltwin",
+    "url": "https://www.mydigitaltwin.at"
+  },
+  {
+    "name": "homox",
+    "url": "https://homox.io"
+  },
+  {
+    "name": "healthycity",
+    "url": "https://www.healthycity.it"
+  },
+  {
+    "name": "quanthealth",
+    "url": "https://quanthealth.ai/"
+  },
+  {
+    "name": "deeplife",
+    "url": "https://deeplife.co/"
+  },
+  {
+    "name": "dasisim",
+    "url": "https://dasisim.ai/"
+  },
+  {
+    "name": "mantislabs",
+    "url": "https://mantislabs.com/"
+  },
+  {
+    "name": "geodaisics",
+    "url": "https://geodaisics.com/"
+  },
+  {
+    "name": "ebenbuild",
+    "url": "https://ebenbuild.com/"
+  },
+  {
+    "name": "theorahq",
+    "url": "https://theorahq.com/"
+  },
+  {
+    "name": "aibody",
+    "url": "https://aibody.io/"
+  },
+  {
+    "name": "deepkinetix",
+    "url": "https://deepkinetix.com/"
+  }
 ]
